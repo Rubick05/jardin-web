@@ -132,7 +132,7 @@ function Navbar({ activeSection }) {
           {/* WhatsApp CTA */}
           <div className="nav-cta">
             <a
-              href="https://wa.me/59179381414"
+              href="https://wa.me/59176995052"
               target="_blank"
               rel="noopener noreferrer"
               className="nav-whatsapp"
@@ -162,7 +162,7 @@ function Navbar({ activeSection }) {
         ))}
         <div className="mobile-menu-footer">
           <a
-            href="https://wa.me/591XXXXXXXX"
+            href="https://wa.me/59176995052"
             target="_blank"
             rel="noopener noreferrer"
             className="contact-whatsapp-btn"
@@ -425,7 +425,7 @@ function PromoModal({ onClose }) {
         <div className="promo-modal-body">
           <div className="promo-modal-actions" style={{ justifyContent: 'center' }}>
             <a
-              href="https://wa.me/59179381414"
+              href="https://wa.me/59176995052"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-gold"
@@ -567,14 +567,14 @@ function Contacto() {
     {
       icon: <Phone size={24} />,
       title: 'Teléfono',
-      content: <a href="tel:+591XXXXXXXX">+591 xxx xxx xxxx</a>,
+      content: <a href="tel:+59176995052">+591 76995052</a>,
     },
     {
       icon: <MessageCircle size={24} />,
       title: 'WhatsApp',
       content: (
         <a
-          href="https://wa.me/591XXXXXXXX"
+          href="https://wa.me/59176995052"
           target="_blank"
           rel="noopener noreferrer"
           className="contact-whatsapp-btn"
