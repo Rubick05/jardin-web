@@ -61,7 +61,7 @@ const FALLBACK_PROMOS = [
 
 // ─── GOOGLE SHEETS URL (Reemplazar por el link de tu CSV de Google Sheets) ─────
 // Te daré las instrucciones de cómo obtener este link exacto en mi siguiente mensaje
-const GOOGLE_SHEETS_CSV_URL = import.meta.env.VITE_GOOGLE_SHEETS_CSV_URL || '';
+const GOOGLE_SHEETS_CSV_URL = import.meta.env.VITE_GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT6xrhLFNwGj-A2IvIevRfWcjCv-PsYI0UQG091hVatjwkRFeR5hHcM8h80fEksaZcOY5cM0kcJYTDl/pub?output=csv';
 
 const MENU_TABS = [
   { key: 'platos', label: 'Platos Fuertes', icon: <Utensils size={16} /> },
@@ -676,10 +676,20 @@ export default function App() {
       complete: (results) => {
         const data = results.data;
         if (Array.isArray(data) && data.length > 0) {
-          // Ordenamos por número de orden de MAYOR a MENOR (descendente)
-          // Así, el último que suba el admin (con el orden más alto) será el primero y aparecerá en el Modal.
-          const sortedData = data.sort((a, b) => parseInt(b.orden || '0') - parseInt(a.orden || '0'))
-          setPromosAPI(sortedData)
+          // Las respuestas del formulario vienen de más antigua a más nueva.
+          // Tomamos las últimas 5 y las mostramos de más nueva a más antigua.
+          const mapped = data
+            .filter(row => row['Link de foto o video'] && row['Link de foto o video'].trim() !== '')
+            .slice(-5)      // últimas 5 filas
+            .reverse()     // la más nueva primero
+            .map(row => ({
+              tipo: (row['Tipo de archivo'] || 'imagen').toLowerCase().trim() === 'video' ? 'video' : 'imagen',
+              imagen_url: (row['Link de foto o video'] || '').trim(),
+              badge: (row['Peña etiqueta'] || '').trim() || 'Promoción',
+              titulo: (row['Titulo de la Promocion'] || '').trim() || 'Novedad del Mes',
+              subtitulo: (row['Subtitulo o Descripcion'] || '').trim(),
+            }))
+          setPromosAPI(mapped)
         }
         setLoadingPromos(false)
       },
