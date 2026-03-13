@@ -4,6 +4,7 @@ import {
   Utensils, Leaf, Heart, Award, ChevronLeft, ChevronRight,
   Menu as MenuIcon, X, Play, Pause
 } from 'lucide-react'
+import Papa from 'papaparse'
 import './index.css'
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -34,10 +35,33 @@ const MENU_ITEMS = {
 /**
  * PROMOS: Ahora se cargan dinámicamente desde el Backend
  */
-const FALLBACK_PROMOS = [];
+const FALLBACK_PROMOS = [
+  {
+    tipo: 'imagen',
+    datos_base64: '/promo5.jpg',
+    badge: 'Promoción · Marzo 2025',
+    titulo: 'Oferta Especial del Mes',
+    subtitulo: '¡Por tiempo limitado! Consulta disponibilidad.',
+  },
+  {
+    tipo: 'imagen',
+    datos_base64: '/promo2.jpg',
+    badge: 'Promoción Exclusiva',
+    titulo: 'Combos y Novedades',
+    subtitulo: 'Disfruta nuestras mejores combinaciones.',
+  },
+  {
+    tipo: 'imagen',
+    datos_base64: '/promo3.jpg',
+    badge: 'No te lo pierdas',
+    titulo: 'Sabores de Temporada',
+    subtitulo: 'Lo mejor de la cocina boliviana en cada plato.',
+  }
+];
 
-// Reemplazar con URL de tu backend en Vercel si es necesario
-const API_URL = import.meta.env.VITE_API_URL || 'https://restaurante-pelusa-production.up.railway.app/api';
+// ─── GOOGLE SHEETS URL (Reemplazar por el link de tu CSV de Google Sheets) ─────
+// Te daré las instrucciones de cómo obtener este link exacto en mi siguiente mensaje
+const GOOGLE_SHEETS_CSV_URL = import.meta.env.VITE_GOOGLE_SHEETS_CSV_URL || '';
 
 const MENU_TABS = [
   { key: 'platos', label: 'Platos Fuertes', icon: <Utensils size={16} /> },
@@ -332,7 +356,7 @@ function SlideMedia({ promo, isActive, className }) {
     return (
       <video
         ref={videoRef}
-        src={promo.datos_base64}
+        src={promo.imagen_url || promo.datos_base64}
         className={className}
         controls
         playsInline
@@ -344,7 +368,7 @@ function SlideMedia({ promo, isActive, className }) {
 
   return (
     <img
-      src={promo.datos_base64}
+      src={promo.imagen_url || promo.datos_base64}
       alt={promo.titulo}
       className={className}
       loading="lazy"
@@ -516,7 +540,7 @@ function Promociones({ promosList, loading }) {
                 >
                   {p.tipo === 'video'
                     ? <div className="promo-thumb-video"><Play size={16} /></div>
-                    : <img src={p.datos_base64} alt="" />
+                    : <img src={p.imagen_url || p.datos_base64} alt="" />
                   }
                 </button>
               ))}
@@ -639,17 +663,31 @@ export default function App() {
   const activeSection = useActiveSection(sections)
 
   useEffect(() => {
-    // Fetch Promos from API
-    fetch(`${API_URL}/promociones`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          const sortedData = data.sort((a, b) => (a.orden || 0) - (b.orden || 0))
+    if (!GOOGLE_SHEETS_CSV_URL) {
+      // Si no hay URL configurada, muestra las variables por defecto tras 1 segundo
+      setTimeout(() => setLoadingPromos(false), 1000)
+      return
+    }
+
+    Papa.parse(GOOGLE_SHEETS_CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const data = results.data;
+        if (Array.isArray(data) && data.length > 0) {
+          // Ordenamos por número de orden de MAYOR a MENOR (descendente)
+          // Así, el último que suba el admin (con el orden más alto) será el primero y aparecerá en el Modal.
+          const sortedData = data.sort((a, b) => parseInt(b.orden || '0') - parseInt(a.orden || '0'))
           setPromosAPI(sortedData)
         }
-      })
-      .catch(err => console.error("Error al cargar promociones:", err))
-      .finally(() => setLoadingPromos(false))
+        setLoadingPromos(false)
+      },
+      error: (error) => {
+        console.error("Error al leer Google Sheets CSV:", error)
+        setLoadingPromos(false)
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -662,8 +700,6 @@ export default function App() {
     const t = setTimeout(() => setShowModal(true), 1800)
     return () => clearTimeout(t)
   }, [])
-
-  const currentFirstPromo = promosAPI.length > 0 ? promosAPI[0] : FALLBACK_PROMOS[0];
 
   return (
     <>
@@ -681,7 +717,7 @@ export default function App() {
       >
         <ChevronUp size={22} />
       </button>
-      {showModal && <PromoModal promo={currentFirstPromo} onClose={() => setShowModal(false)} />}
+      {showModal && <PromoModal promo={promosAPI.length > 0 ? promosAPI[0] : FALLBACK_PROMOS[0]} onClose={() => setShowModal(false)} />}
     </>
   )
 }

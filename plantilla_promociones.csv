@@ -1,0 +1,4 @@
+id,tipo,imagen_url,badge,titulo,subtitulo,orden
+1,imagen,https://placehold.co/800x600/b9a16b/FFF?text=Promoci%C3%B3n+1+de+Prueba,Promoción · Marzo 2025,Oferta Especial del Mes,¡Por tiempo limitado! Consulta disponibilidad.,1
+2,imagen,https://placehold.co/800x600/1e2d18/FFF?text=Promoci%C3%B3n+2+de+Prueba,Promoción Exclusiva,Combos y Novedades,Disfruta nuestras mejores combinaciones.,2
+3,imagen,https://placehold.co/800x600/000/b9a16b?text=Promoci%C3%B3n+3+de+Prueba,No te lo pierdas,Sabores de Temporada,Lo mejor de la cocina boliviana en cada plato.,3
