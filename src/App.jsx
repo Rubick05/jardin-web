@@ -34,29 +34,7 @@ const MENU_ITEMS = {
 /**
  * PROMOS: Ahora se cargan dinámicamente desde el Backend
  */
-const FALLBACK_PROMOS = [
-  {
-    tipo: 'imagen',
-    datos_base64: '/promo5.jpg',
-    badge: 'Promoción · Marzo 2025',
-    titulo: 'Oferta Especial del Mes',
-    subtitulo: '¡Por tiempo limitado! Consulta disponibilidad.',
-  },
-  {
-    tipo: 'imagen',
-    datos_base64: '/promo2.jpg',
-    badge: 'Promoción Exclusiva',
-    titulo: 'Combos y Novedades',
-    subtitulo: 'Disfruta nuestras mejores combinaciones.',
-  },
-  {
-    tipo: 'imagen',
-    datos_base64: '/promo3.jpg',
-    badge: 'No te lo pierdas',
-    titulo: 'Sabores de Temporada',
-    subtitulo: 'Lo mejor de la cocina boliviana en cada plato.',
-  }
-];
+const FALLBACK_PROMOS = [];
 
 // Reemplazar con URL de tu backend en Vercel si es necesario
 const API_URL = import.meta.env.VITE_API_URL || 'https://restaurante-pelusa-production.up.railway.app/api';
@@ -438,6 +416,7 @@ function Promociones({ promosList, loading }) {
   const total = promos.length;
 
   const go = useCallback(idx => {
+    if (total === 0) return
     setCurrent((idx + total) % total)
   }, [total])
 
@@ -467,6 +446,10 @@ function Promociones({ promosList, loading }) {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b9a16b', fontSize: '1.2rem', fontFamily: 'Georgia, serif' }}>
             Cargando promociones...
+          </div>
+        ) : promos.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b9a16b', fontSize: '1.2rem', fontFamily: 'Georgia, serif' }}>
+            No hay promociones exclusivas en este momento...
           </div>
         ) : (
           <>
