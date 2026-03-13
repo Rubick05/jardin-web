@@ -429,7 +429,7 @@ function PromoModal({ promo, onClose }) {
 
 // ─── PROMOCIONES ──────────────────────────────────────────────────────────────
 
-function Promociones({ promosList }) {
+function Promociones({ promosList, loading }) {
   const [current, setCurrent] = useState(0)
   const [autoplay, setAutoplay] = useState(true)
   const timerRef = useRef(null)
@@ -445,10 +445,10 @@ function Promociones({ promosList }) {
   const currentIsVideo = promos[current]?.tipo === 'video'
 
   useEffect(() => {
-    if (!autoplay || currentIsVideo) return
+    if (!autoplay || currentIsVideo || loading) return
     timerRef.current = setInterval(() => go(current + 1), 5500)
     return () => clearInterval(timerRef.current)
-  }, [autoplay, current, go, currentIsVideo])
+  }, [autoplay, current, go, currentIsVideo, loading])
 
   const pause = () => { setAutoplay(false); clearInterval(timerRef.current) }
   const resume = () => { if (!currentIsVideo) setAutoplay(true) }
@@ -464,74 +464,82 @@ function Promociones({ promosList }) {
           </p>
         </div>
 
-        <div
-          className="promo-carousel-outer"
-          onMouseEnter={pause}
-          onMouseLeave={resume}
-        >
-          <div className="promo-carousel">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b9a16b', fontSize: '1.2rem', fontFamily: 'Georgia, serif' }}>
+            Cargando promociones...
+          </div>
+        ) : (
+          <>
             <div
-              className="promo-track"
-              style={{ transform: `translateX(-${current * 100}%)` }}
+              className="promo-carousel-outer"
+              onMouseEnter={pause}
+              onMouseLeave={resume}
             >
-              {promos.map((p, i) => (
-                <div className="promo-slide" key={i}>
-                  <div className="promo-slide-frame">
-                    <SlideMedia
-                      promo={p}
-                      isActive={i === current}
-                      className="promo-slide-img-full"
-                    />
-                  </div>
-                  <div className="promo-slide-caption-bar">
-                    <span className="promo-slide-badge">{p.badge}</span>
-                    <span className="promo-slide-bar-title">{p.titulo}</span>
-                    {p.tipo === 'video' && (
-                      <span className="promo-video-indicator">
-                        <Play size={13} style={{ marginRight: 4 }} />
-                        Video
-                      </span>
-                    )}
-                  </div>
+              <div className="promo-carousel">
+                <div
+                  className="promo-track"
+                  style={{ transform: `translateX(-${current * 100}%)` }}
+                >
+                  {promos.map((p, i) => (
+                    <div className="promo-slide" key={i}>
+                      <div className="promo-slide-frame">
+                        <SlideMedia
+                          promo={p}
+                          isActive={i === current}
+                          className="promo-slide-img-full"
+                        />
+                      </div>
+                      <div className="promo-slide-caption-bar">
+                        <span className="promo-slide-badge">{p.badge}</span>
+                        <span className="promo-slide-bar-title">{p.titulo}</span>
+                        {p.tipo === 'video' && (
+                          <span className="promo-video-indicator">
+                            <Play size={13} style={{ marginRight: 4 }} />
+                            Video
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              <button className="promo-arrow promo-arrow-prev" onClick={() => { pause(); go(current - 1) }} aria-label="Anterior">
+                <ChevronLeft size={22} />
+              </button>
+              <button className="promo-arrow promo-arrow-next" onClick={() => { pause(); go(current + 1) }} aria-label="Siguiente">
+                <ChevronRight size={22} />
+              </button>
+            </div>
+
+            <div className="promo-dots">
+              {promos.map((p, i) => (
+                <button
+                  key={i}
+                  className={`promo-dot ${i === current ? 'active' : ''}`}
+                  onClick={() => { pause(); go(i) }}
+                  aria-label={`Ir a promoción ${i + 1}`}
+                />
               ))}
             </div>
-          </div>
 
-          <button className="promo-arrow promo-arrow-prev" onClick={() => { pause(); go(current - 1) }} aria-label="Anterior">
-            <ChevronLeft size={22} />
-          </button>
-          <button className="promo-arrow promo-arrow-next" onClick={() => { pause(); go(current + 1) }} aria-label="Siguiente">
-            <ChevronRight size={22} />
-          </button>
-        </div>
-
-        <div className="promo-dots">
-          {promos.map((p, i) => (
-            <button
-              key={i}
-              className={`promo-dot ${i === current ? 'active' : ''}`}
-              onClick={() => { pause(); go(i) }}
-              aria-label={`Ir a promoción ${i + 1}`}
-            />
-          ))}
-        </div>
-
-        <div className="promo-thumbs">
-          {promos.map((p, i) => (
-            <button
-              key={i}
-              className={`promo-thumb ${i === current ? 'active' : ''}`}
-              onClick={() => { pause(); go(i) }}
-              aria-label={`Promoción ${i + 1}`}
-            >
-              {p.tipo === 'video'
-                ? <div className="promo-thumb-video"><Play size={16} /></div>
-                : <img src={p.datos_base64} alt="" />
-              }
-            </button>
-          ))}
-        </div>
+            <div className="promo-thumbs">
+              {promos.map((p, i) => (
+                <button
+                  key={i}
+                  className={`promo-thumb ${i === current ? 'active' : ''}`}
+                  onClick={() => { pause(); go(i) }}
+                  aria-label={`Promoción ${i + 1}`}
+                >
+                  {p.tipo === 'video'
+                    ? <div className="promo-thumb-video"><Play size={16} /></div>
+                    : <img src={p.datos_base64} alt="" />
+                  }
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </section>
   )
@@ -642,6 +650,7 @@ export default function App() {
   const [showTop, setShowTop] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [promosAPI, setPromosAPI] = useState([])
+  const [loadingPromos, setLoadingPromos] = useState(true)
 
   const sections = ['inicio', 'nosotros', 'menu', 'promociones', 'contacto']
   const activeSection = useActiveSection(sections)
@@ -651,11 +660,13 @@ export default function App() {
     fetch(`${API_URL}/promociones`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPromosAPI(data)
+        if (Array.isArray(data)) {
+          const sortedData = data.sort((a, b) => (a.orden || 0) - (b.orden || 0))
+          setPromosAPI(sortedData)
         }
       })
       .catch(err => console.error("Error al cargar promociones:", err))
+      .finally(() => setLoadingPromos(false))
   }, [])
 
   useEffect(() => {
@@ -677,7 +688,7 @@ export default function App() {
       <Hero />
       <Nosotros />
       <MenuSection />
-      <Promociones promosList={promosAPI} />
+      <Promociones promosList={promosAPI} loading={loadingPromos} />
       <Contacto />
       <Footer />
       <button
