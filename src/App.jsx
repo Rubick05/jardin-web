@@ -32,48 +32,34 @@ const MENU_ITEMS = {
 }
 
 /**
- * PROMOS — Para agregar una promo:
- *
- * Imagen:
- *   { type: 'image', src: '/mi-foto.jpg', badge: '...', title: '...', sub: '...' }
- *
- * Video (copia el MP4 o WebM en la carpeta public/):
- *   { type: 'video', src: '/mi-video.mp4', poster: '/thumb.jpg', badge: '...', title: '...', sub: '...' }
- *
- * La promo en la posición [0] es la que aparece en el modal al cargar la página.
+ * PROMOS: Ahora se cargan dinámicamente desde el Backend
  */
-const PROMOS = [
+const FALLBACK_PROMOS = [
   {
-    type: 'image',
-    src: '/promo5.jpg',
+    tipo: 'imagen',
+    datos_base64: '/promo5.jpg',
     badge: 'Promoción · Marzo 2025',
-    title: 'Oferta Especial del Mes',
-    sub: '¡Por tiempo limitado! Consulta disponibilidad.',
+    titulo: 'Oferta Especial del Mes',
+    subtitulo: '¡Por tiempo limitado! Consulta disponibilidad.',
   },
   {
-    type: 'image',
-    src: '/promo2.jpg',
+    tipo: 'imagen',
+    datos_base64: '/promo2.jpg',
     badge: 'Promoción Exclusiva',
-    title: 'Combos y Novedades',
-    sub: 'Disfruta nuestras mejores combinaciones.',
+    titulo: 'Combos y Novedades',
+    subtitulo: 'Disfruta nuestras mejores combinaciones.',
   },
   {
-    type: 'image',
-    src: '/promo3.jpg',
+    tipo: 'imagen',
+    datos_base64: '/promo3.jpg',
     badge: 'No te lo pierdas',
-    title: 'Sabores de Temporada',
-    sub: 'Lo mejor de la cocina boliviana en cada plato.',
-  },
-  // ── Ejemplo con video — descomenta y ajusta cuando tengas tu archivo ──
-  // {
-  //   type: 'video',
-  //   src: '/grupo-invitado.mp4',
-  //   poster: '/promo1.jpg',
-  //   badge: 'En vivo · Marzo 2025',
-  //   title: 'Grupo Invitado Especial',
-  //   sub: '¡Esta noche a partir de las 20:00!',
-  // },
-]
+    titulo: 'Sabores de Temporada',
+    subtitulo: 'Lo mejor de la cocina boliviana en cada plato.',
+  }
+];
+
+// Reemplazar con URL de tu backend en Vercel si es necesario
+const API_URL = import.meta.env.VITE_API_URL || 'https://restaurante-pelusa-production.up.railway.app/api';
 
 const MENU_TABS = [
   { key: 'platos', label: 'Platos Fuertes', icon: <Utensils size={16} /> },
@@ -364,12 +350,11 @@ function SlideMedia({ promo, isActive, className }) {
     }
   }, [isActive])
 
-  if (promo.type === 'video') {
+  if (promo.tipo === 'video') {
     return (
       <video
         ref={videoRef}
-        src={promo.src}
-        poster={promo.poster}
+        src={promo.datos_base64}
         className={className}
         controls
         playsInline
@@ -381,8 +366,8 @@ function SlideMedia({ promo, isActive, className }) {
 
   return (
     <img
-      src={promo.src}
-      alt={promo.title}
+      src={promo.datos_base64}
+      alt={promo.titulo}
       className={className}
       loading="lazy"
       onError={e => {
@@ -395,8 +380,8 @@ function SlideMedia({ promo, isActive, className }) {
 
 // ─── PROMO MODAL ──────────────────────────────────────────────────────────────
 
-function PromoModal({ onClose }) {
-  const promo = PROMOS[0]
+function PromoModal({ promo, onClose }) {
+  if (!promo) return null;
 
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose() }
@@ -444,18 +429,20 @@ function PromoModal({ onClose }) {
 
 // ─── PROMOCIONES ──────────────────────────────────────────────────────────────
 
-function Promociones() {
+function Promociones({ promosList }) {
   const [current, setCurrent] = useState(0)
   const [autoplay, setAutoplay] = useState(true)
   const timerRef = useRef(null)
-  const total = PROMOS.length
+
+  const promos = promosList && promosList.length > 0 ? promosList : FALLBACK_PROMOS;
+  const total = promos.length;
 
   const go = useCallback(idx => {
     setCurrent((idx + total) % total)
   }, [total])
 
   // Pausa el autoplay cuando el slide activo es un video (el video toma el control)
-  const currentIsVideo = PROMOS[current]?.type === 'video'
+  const currentIsVideo = promos[current]?.tipo === 'video'
 
   useEffect(() => {
     if (!autoplay || currentIsVideo) return
@@ -487,7 +474,7 @@ function Promociones() {
               className="promo-track"
               style={{ transform: `translateX(-${current * 100}%)` }}
             >
-              {PROMOS.map((p, i) => (
+              {promos.map((p, i) => (
                 <div className="promo-slide" key={i}>
                   <div className="promo-slide-frame">
                     <SlideMedia
@@ -498,8 +485,8 @@ function Promociones() {
                   </div>
                   <div className="promo-slide-caption-bar">
                     <span className="promo-slide-badge">{p.badge}</span>
-                    <span className="promo-slide-bar-title">{p.title}</span>
-                    {p.type === 'video' && (
+                    <span className="promo-slide-bar-title">{p.titulo}</span>
+                    {p.tipo === 'video' && (
                       <span className="promo-video-indicator">
                         <Play size={13} style={{ marginRight: 4 }} />
                         Video
@@ -520,7 +507,7 @@ function Promociones() {
         </div>
 
         <div className="promo-dots">
-          {PROMOS.map((p, i) => (
+          {promos.map((p, i) => (
             <button
               key={i}
               className={`promo-dot ${i === current ? 'active' : ''}`}
@@ -531,16 +518,16 @@ function Promociones() {
         </div>
 
         <div className="promo-thumbs">
-          {PROMOS.map((p, i) => (
+          {promos.map((p, i) => (
             <button
               key={i}
               className={`promo-thumb ${i === current ? 'active' : ''}`}
               onClick={() => { pause(); go(i) }}
               aria-label={`Promoción ${i + 1}`}
             >
-              {p.type === 'video'
+              {p.tipo === 'video'
                 ? <div className="promo-thumb-video"><Play size={16} /></div>
-                : <img src={p.src} alt="" />
+                : <img src={p.datos_base64} alt="" />
               }
             </button>
           ))}
@@ -654,8 +641,22 @@ function useActiveSection(sections) {
 export default function App() {
   const [showTop, setShowTop] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [promosAPI, setPromosAPI] = useState([])
+
   const sections = ['inicio', 'nosotros', 'menu', 'promociones', 'contacto']
   const activeSection = useActiveSection(sections)
+
+  useEffect(() => {
+    // Fetch Promos from API
+    fetch(`${API_URL}/promociones`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPromosAPI(data)
+        }
+      })
+      .catch(err => console.error("Error al cargar promociones:", err))
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 400)
@@ -668,13 +669,15 @@ export default function App() {
     return () => clearTimeout(t)
   }, [])
 
+  const currentFirstPromo = promosAPI.length > 0 ? promosAPI[0] : FALLBACK_PROMOS[0];
+
   return (
     <>
       <Navbar activeSection={activeSection} />
       <Hero />
       <Nosotros />
       <MenuSection />
-      <Promociones />
+      <Promociones promosList={promosAPI} />
       <Contacto />
       <Footer />
       <button
@@ -684,7 +687,7 @@ export default function App() {
       >
         <ChevronUp size={22} />
       </button>
-      {showModal && <PromoModal onClose={() => setShowModal(false)} />}
+      {showModal && <PromoModal promo={currentFirstPromo} onClose={() => setShowModal(false)} />}
     </>
   )
 }
