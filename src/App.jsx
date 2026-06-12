@@ -12,23 +12,23 @@ const FALLBACK_PROMOS = [
   {
     tipo: 'imagen',
     imagen_base64: '/promo5.jpg',
-    badge: 'Promoción Especial',
-    titulo: 'Oferta del Mes',
-    subtitulo: '¡Por tiempo limitado!',
+    badge: 'Tradición Familiar',
+    titulo: 'Pampaku de Domingo',
+    subtitulo: 'Asado tradicional cocido bajo tierra, servido en abundancia para compartir en familia.',
   },
   {
     tipo: 'imagen',
     imagen_base64: '/promo2.jpg',
-    badge: 'Novedad',
-    titulo: 'Combos y Novedades',
-    subtitulo: 'Disfruta nuestras mejores combinaciones.',
+    badge: 'Noches de Peña',
+    titulo: 'Folklore en Vivo',
+    subtitulo: 'Disfruta de la mejor música andina y folklórica con destacados artistas nacionales.',
   },
   {
     tipo: 'imagen',
     imagen_base64: '/promo3.jpg',
-    badge: 'No te lo pierdas',
-    titulo: 'Sabores de Temporada',
-    subtitulo: 'Lo mejor de la cocina boliviana.',
+    badge: 'Sabor Valluno',
+    titulo: 'Chicha de Maíz Cocida',
+    subtitulo: 'Prueba la chicha cochabambina elaborada artesanalmente en jarra de barro tradicional.',
   }
 ]
 
@@ -45,15 +45,127 @@ const HERO_SLIDES = [
 
 // ─── Imágenes para la Galería Mosaico ─────────────────────────────────────────
 const GALERIA_ITEMS = [
-  { src: '/charque.jpg', nombre: 'Charque', span: 'span-2-col' },
-  { src: '/pampaku.jpg', nombre: 'Pampaku', span: 'span-1' },
-  { src: '/lambreado.jpg', nombre: 'Lambreado', span: 'span-1' },
-  { src: '/escabeche-mixto.jpg', nombre: 'Escabeche Mixto', span: 'span-1' },
-  { src: '/fideosuchu.jpg', nombre: 'Fideos Uchu', span: 'span-2-row' },
-  { src: '/jatun-pampaku.jpg', nombre: 'Jatun Pampaku', span: 'span-1' },
-  { src: '/chajchu.jpg', nombre: 'Chajchu', span: 'span-2-col' },
-  { src: '/musica.jpg', nombre: 'Música en Vivo', span: 'span-1' },
+  { 
+    src: '/charque.jpg', 
+    nombre: 'Charque', 
+    span: 'span-2-col',
+    tagline: 'Carne deshidratada crujiente',
+    detalles: 'Con mote, huevo y queso criollo.'
+  },
+  { 
+    src: '/pampaku.jpg', 
+    nombre: 'Pampaku', 
+    span: 'span-1',
+    tagline: 'Cocción tradicional bajo tierra',
+    detalles: 'Mix de carnes y tubérculos al horno.'
+  },
+  { 
+    src: '/lambreado.jpg', 
+    nombre: 'Lambreado', 
+    span: 'span-1',
+    tagline: 'Conejo criollo apanado',
+    detalles: 'Bañado con ahogado de ají colorado.'
+  },
+  { 
+    src: '/escabeche-mixto.jpg', 
+    nombre: 'Escabeche Mixto', 
+    span: 'span-1',
+    tagline: 'Patitas de cerdo marinadas',
+    detalles: 'Verduras selectas en conserva.'
+  },
+  { 
+    src: '/fideosuchu.jpg', 
+    nombre: 'Fideos Uchu', 
+    span: 'span-2-row',
+    tagline: 'Fideos picantes tradicionales',
+    detalles: 'Con carne de res y papa entera cocida.'
+  },
+  { 
+    src: '/jatun-pampaku.jpg', 
+    nombre: 'Jatun Pampaku', 
+    span: 'span-1',
+    tagline: 'Gran asado bajo tierra',
+    detalles: 'Para compartir entre amigos y familia.'
+  },
+  { 
+    src: '/chajchu.jpg', 
+    nombre: 'Chajchu', 
+    span: 'span-2-col',
+    tagline: 'Plato valluno tradicional',
+    detalles: 'Carne desmechada, chuño, ají y huevo.'
+  },
+  { 
+    src: '/musica.jpg', 
+    nombre: 'Música en Vivo', 
+    span: 'span-1',
+    tagline: 'Noches de Peña cultural',
+    detalles: 'Artistas en vivo todos los fines de semana.'
+  },
 ]
+
+// ─── Datos del Menú (Nuestra Carta) ───────────────────────────────────────────
+const MENU_CATEGORIAS = [
+  { id: 'principales', nombre: 'Platos Tradicionales' },
+  { id: 'entradas', nombre: 'Entradas y Acompañamientos' },
+  { id: 'bebidas', nombre: 'Bebidas Tradicionales' }
+]
+
+const MENU_ITEMS = {
+  principales: [
+    {
+      nombre: 'Pampaku Tradicional',
+      precio: 'Bs. 70',
+      descripcion: 'Carnes selectas de res, cordero, cerdo y pollo sazonadas con hierbas aromáticas locales y cocidas bajo tierra con piedras calientes al estilo de los valles.',
+      ingredientes: 'Papa, camote, oca, plátano, habas, carnes de res, cordero, cerdo y pollo'
+    },
+    {
+      nombre: 'Charque K\'Full',
+      precio: 'Bs. 65',
+      descripcion: 'Filetes delgados de carne deshidratada y frita hasta lograr una textura crocante y sabrosa, acompañado de mote de maíz y huevo duro.',
+      ingredientes: 'Charque crujiente de res, mote de maíz, huevo duro, queso criollo artesanal'
+    },
+    {
+      nombre: 'Lambreado de Conejo',
+      precio: 'Bs. 55',
+      descripcion: 'Conejo criollo tierno, apanado y dorado a la perfección, bañado con un delicioso y picante ahogado tradicional de ají colorado.',
+      ingredientes: 'Conejo criollo, pan molido especiado, ají colorado, ensalada de la casa'
+    },
+    {
+      nombre: 'Fideos Uchu',
+      precio: 'Bs. 50',
+      descripcion: 'Plato picante tradicional de fideos con ají colorado de la casa, servido con jugosos trozos de carne y papas enteras.',
+      ingredientes: 'Fideo grueso seleccionado, ají colorado valluno, carne de res, papa cocida'
+    }
+  ],
+  entradas: [
+    {
+      nombre: 'Escabeche Mixto',
+      precio: 'Bs. 30',
+      descripcion: 'Patitas de cerdo marinadas y verduras en conserva en vinagreta artesanal con pimienta y especias locales.',
+      ingredientes: 'Patitas de cerdo, zanahoria, cebolla morada, locoto picante, vinagre de manzana'
+    },
+    {
+      nombre: 'Pastel de Choclo',
+      precio: 'Bs. 25',
+      descripcion: 'Pastel horneado de maíz tierno molido a mano, relleno de abundante queso criollo derretido con un sutil aroma a canela.',
+      ingredientes: 'Choclo tierno del valle, queso criollo, canela molida, huevos de campo'
+    }
+  ],
+  bebidas: [
+    {
+      nombre: 'Chicha Cochabambina',
+      precio: 'Bs. 15',
+      descripcion: 'Bebida fermentada tradicional de maíz amarillo cultivado en los valles cochabambinos, servida bien fría en jarra de barro.',
+      ingredientes: 'Maíz amarillo fermentado de manera artesanal, agua, azúcar'
+    },
+    {
+      nombre: 'Cerveza Huari Tradicional',
+      precio: 'Bs. 25',
+      descripcion: 'Cerveza premium nacional elaborada con agua pura de vertiente andina, ideal para maridar con la comida picante.',
+      ingredientes: 'Malta seleccionada, agua de vertiente andina, lúpulo'
+    }
+  ]
+}
 
 // ─── Icono SVG de WhatsApp reutilizable ───────────────────────────────────────
 function WhatsAppIcon({ size = 24 }) {
@@ -66,27 +178,116 @@ function WhatsAppIcon({ size = 24 }) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  FLOATING BRAND — Logo flotante glassmorphism (reemplaza Navbar)
+//  FLOATING NAVBAR — Premium glassmorphism pill navigation
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function FloatingBrand() {
-  const [visible, setVisible] = useState(false)
+function FloatingNavbar() {
+  const [visible, setVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
+  const [activeSection, setActiveSection] = useState('inicio')
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > 100)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      // Hide on scroll down, show on scroll up
+      if (currentScrollY > 150) {
+        if (currentScrollY > lastScrollY) {
+          setVisible(false) // scrolling down
+        } else {
+          setVisible(true) // scrolling up
+        }
+      } else {
+        setVisible(true) // near top
+      }
+      
+      setLastScrollY(currentScrollY)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [lastScrollY])
+
+  // Track active section on scroll
+  useEffect(() => {
+    const sections = ['inicio', 'cocina', 'menu', 'promociones', 'contacto']
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id)
+        }
+      })
+    }
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '-40% 0px -40% 0px', // Trigger when section is in middle of viewport
+      threshold: 0,
+    }
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions)
+
+    sections.forEach((id) => {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
   }, [])
 
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' })
+      setActiveSection(id)
+    }
+  }
+
   return (
-    <div className={`floating-brand ${visible ? 'visible' : ''}`}>
-      <div className="floating-brand-logo">
-        <img src="/logo-hoja.png" alt="El Jardín" />
+    <nav className={`floating-navbar ${!visible ? 'hidden-nav' : ''}`}>
+      <div className="floating-navbar-brand" onClick={() => scrollToSection('inicio')} style={{ cursor: 'pointer' }}>
+        <div className="floating-navbar-logo">
+          <img src="/logo-hoja.png" alt="El Jardín" />
+        </div>
+        <span className="floating-navbar-text">El Jardín</span>
       </div>
-      <span className="floating-brand-text">El Jardín</span>
-    </div>
+      
+      <div className="floating-navbar-menu">
+        <a 
+          className={`floating-navbar-link ${activeSection === 'inicio' ? 'active' : ''}`}
+          onClick={() => scrollToSection('inicio')}
+        >
+          Inicio
+        </a>
+        <a 
+          className={`floating-navbar-link ${activeSection === 'cocina' ? 'active' : ''}`}
+          onClick={() => scrollToSection('cocina')}
+        >
+          Cocina
+        </a>
+        <a 
+          className={`floating-navbar-link ${activeSection === 'menu' ? 'active' : ''}`}
+          onClick={() => scrollToSection('menu')}
+        >
+          Menú
+        </a>
+        <a 
+          className={`floating-navbar-link ${activeSection === 'promociones' ? 'active' : ''}`}
+          onClick={() => scrollToSection('promociones')}
+        >
+          Promos
+        </a>
+        <a 
+          className={`floating-navbar-link ${activeSection === 'contacto' ? 'active' : ''}`}
+          onClick={() => scrollToSection('contacto')}
+        >
+          Contacto
+        </a>
+      </div>
+    </nav>
   )
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HERO GALLERY — Slideshow fullscreen con Ken Burns
@@ -146,6 +347,27 @@ function HeroGallery() {
           <em>El Jardín</em>
         </h1>
         <p className="hero-gallery-sub">Peña · Restaurant · Cochabamba, Bolivia</p>
+        
+        <div className="hero-gallery-actions">
+          <button 
+            onClick={() => {
+              const el = document.getElementById('menu')
+              if (el) el.scrollIntoView({ behavior: 'smooth' })
+            }} 
+            className="btn btn-gold"
+          >
+            Ver el Menú
+          </button>
+          <button 
+            onClick={() => {
+              const el = document.getElementById('contacto')
+              if (el) el.scrollIntoView({ behavior: 'smooth' })
+            }} 
+            className="btn btn-outline"
+          >
+            Reservar Mesa
+          </button>
+        </div>
       </div>
 
       {/* Indicador de scroll */}
@@ -222,7 +444,11 @@ function GaleriaMosaico() {
             >
               <img src={item.src} alt={item.nombre} loading="lazy" />
               <div className="mosaic-overlay">
-                <span className="mosaic-nombre">{item.nombre}</span>
+                <div className="mosaic-overlay-content">
+                  <span className="mosaic-nombre">{item.nombre}</span>
+                  {item.tagline && <span className="mosaic-tagline">{item.tagline}</span>}
+                  {item.detalles && <p className="mosaic-detalles">{item.detalles}</p>}
+                </div>
               </div>
             </div>
           ))}
@@ -231,6 +457,59 @@ function GaleriaMosaico() {
     </section>
   )
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  NUESTRA CARTA — Menú Bento con pestañas interactivas
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function NuestraCarta() {
+  const [categoriaActiva, setCategoriaActiva] = useState('principales')
+
+  return (
+    <section className="section section-dark" id="menu">
+      <div className="container">
+        <div className="section-header">
+          <span className="section-tag">Nuestra Carta</span>
+          <h2 className="section-title">Sabores Tradicionales</h2>
+          <p className="section-desc">
+            Cada plato es una obra de arte culinaria que honra el legado gastronómico de Cochabamba.
+          </p>
+        </div>
+
+        {/* Selector de categorías */}
+        <div className="menu-tabs">
+          {MENU_CATEGORIAS.map((cat) => (
+            <button
+              key={cat.id}
+              className={`menu-tab-btn ${categoriaActiva === cat.id ? 'active' : ''}`}
+              onClick={() => setCategoriaActiva(cat.id)}
+            >
+              {cat.nombre}
+            </button>
+          ))}
+        </div>
+
+        {/* Grilla de platos */}
+        <div className="menu-grid">
+          {MENU_ITEMS[categoriaActiva].map((item, index) => (
+            <div className="menu-item-card" key={index}>
+              <div className="menu-item-header">
+                <h3 className="menu-item-name">{item.nombre}</h3>
+                <span className="menu-item-price">{item.precio}</span>
+              </div>
+              <p className="menu-item-desc">{item.descripcion}</p>
+              <div className="menu-item-ingredients">
+                <span className="menu-item-ingredients-label">Ingredientes:</span>
+                <p className="menu-item-ingredients-text">{item.ingredientes}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  LIGHTBOX — Modal para ver promociones ampliadas
@@ -467,11 +746,33 @@ function UbicacionContacto() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function Footer() {
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
     <footer className="footer">
       <div className="footer-inner">
-        <img src="/logo-hoja.png" alt="El Jardín" className="footer-logo-img" />
-        <p className="footer-tagline">Peña · Restaurant · Bolivia</p>
+        <div className="footer-brand">
+          <img src="/logo-hoja.png" alt="El Jardín" className="footer-logo-img" />
+          <h3 className="footer-title">El Jardín</h3>
+          <p className="footer-tagline">Peña · Restaurant · Tradición</p>
+        </div>
+
+        <div className="footer-links">
+          <a onClick={() => scrollToSection('inicio')}>Inicio</a>
+          <a onClick={() => scrollToSection('cocina')}>Nuestra Cocina</a>
+          <a onClick={() => scrollToSection('menu')}>Menú</a>
+          <a onClick={() => scrollToSection('promociones')}>Promociones</a>
+          <a onClick={() => scrollToSection('contacto')}>Contacto</a>
+        </div>
+
+        <div className="footer-info">
+          <p>Av. Melchor Perez de Olguin, Cochabamba, Bolivia</p>
+          <p>Telf: +591 76995052 · Abierto todos los días de 11:00 a 22:00</p>
+        </div>
+
         <div className="footer-social">
           <a
             href="https://wa.me/59176995052"
@@ -483,6 +784,7 @@ function Footer() {
             <WhatsAppIcon size={20} />
           </a>
         </div>
+
         <p className="footer-copy">
           © {new Date().getFullYear()} Restaurante El Jardín · Todos los derechos reservados.
         </p>
@@ -546,9 +848,10 @@ export default function App() {
 
   return (
     <>
-      <FloatingBrand />
+      <FloatingNavbar />
       <HeroGallery />
       <GaleriaMosaico />
+      <NuestraCarta />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
       <UbicacionContacto />
       <Footer />
