@@ -1,333 +1,228 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import {
-  MapPin, Clock, Phone, MessageCircle, ChevronUp,
-  Utensils, Leaf, Heart, Award, ChevronLeft, ChevronRight,
-  Menu as MenuIcon, X, Play, Pause
-} from 'lucide-react'
-import Papa from 'papaparse'
+import { MapPin, Clock, Phone, MessageCircle, X } from 'lucide-react'
 import './index.css'
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ─── API URL (backend Railway) ────────────────────────────────────────────────
+const API_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace('/api', '')
+  : 'https://restaurante-pelusa-production.up.railway.app'
 
-const MENU_ITEMS = {
-  platos: [
-    { name: 'Pique (Medio)', price: 'Bs 80', img: null },
-    { name: 'Pique (Entero)', price: 'Bs 120', img: null },
-    { name: 'Charque (Medio)', price: 'Bs 80', img: '/charque.jpg' },
-    { name: 'Charque (Entero)', price: 'Bs 120', img: '/charque.jpg' },
-    { name: 'Planchita (Medio)', price: 'Bs 80', img: null },
-    { name: 'Planchita (Entero)', price: 'Bs 120', img: null },
-    { name: 'Jatun Pampaku', price: 'Bs 110', img: '/jatun-pampaku.jpg' },
-    { name: 'Lapping', price: 'Bs 80', img: null },
-    { name: 'Lambreado de Conejo', price: 'Bs 80', img: '/lambreado.jpg' },
-    { name: 'Alitas', price: 'Bs 25', img: null },
-    { name: 'Chillami', price: 'Bs 120', img: null },
-    { name: 'Chajchu', price: 'Bs 80', img: '/chajchu.jpg' },
-    { name: 'Escabeche Mixto', price: 'Bs 80', img: '/escabeche-mixto.jpg' },
-  ],
-  caldos: [
-    { name: 'Lomito Borracho', price: 'Bs 30', img: null },
-    { name: 'Kawi', price: 'Bs 20', img: '/logo-hoja.png' },
-    { name: 'Fideosuchu ', price: 'Bs 40', img: '/fideosuchu.jpg' },
-  ],
-}
-
-/**
- * PROMOS: Ahora se cargan dinámicamente desde el Backend
- */
+// ─── FALLBACK DATA (cuando la API no responde) ────────────────────────────────
 const FALLBACK_PROMOS = [
   {
     tipo: 'imagen',
-    datos_base64: '/promo5.jpg',
-    badge: 'Promoción · Marzo 2025',
-    titulo: 'Oferta Especial del Mes',
-    subtitulo: '¡Por tiempo limitado! Consulta disponibilidad.',
+    imagen_base64: '/promo5.jpg',
+    badge: 'Promoción Especial',
+    titulo: 'Oferta del Mes',
+    subtitulo: '¡Por tiempo limitado!',
   },
   {
     tipo: 'imagen',
-    datos_base64: '/promo2.jpg',
-    badge: 'Promoción Exclusiva',
+    imagen_base64: '/promo2.jpg',
+    badge: 'Novedad',
     titulo: 'Combos y Novedades',
     subtitulo: 'Disfruta nuestras mejores combinaciones.',
   },
   {
     tipo: 'imagen',
-    datos_base64: '/promo3.jpg',
+    imagen_base64: '/promo3.jpg',
     badge: 'No te lo pierdas',
     titulo: 'Sabores de Temporada',
-    subtitulo: 'Lo mejor de la cocina boliviana en cada plato.',
+    subtitulo: 'Lo mejor de la cocina boliviana.',
   }
-];
-
-// ─── GOOGLE SHEETS URL (Reemplazar por el link de tu CSV de Google Sheets) ─────
-// Te daré las instrucciones de cómo obtener este link exacto en mi siguiente mensaje
-const GOOGLE_SHEETS_CSV_URL = import.meta.env.VITE_GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT6xrhLFNwGj-A2IvIevRfWcjCv-PsYI0UQG091hVatjwkRFeR5hHcM8h80fEksaZcOY5cM0kcJYTDl/pub?output=csv';
-
-const MENU_TABS = [
-  { key: 'platos', label: 'Platos Fuertes', icon: <Utensils size={16} /> },
-  { key: 'caldos', label: 'Caldos', icon: '🍲' },
 ]
 
-// ─── NAVBAR ──────────────────────────────────────────────────────────────────
+// ─── Imágenes para el Hero Slideshow ──────────────────────────────────────────
+const HERO_SLIDES = [
+  '/hero-bg.jpg',
+  '/musica.jpg',
+  '/pampaku.jpg',
+  '/lambreado.jpg',
+  '/escabeche-mixto.jpg',
+  '/charque.jpg',
+  '/chajchu.jpg',
+]
 
-function Navbar({ activeSection }) {
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const links = ['inicio', 'nosotros', 'menu', 'promociones', 'contacto']
+// ─── Imágenes para la Galería Mosaico ─────────────────────────────────────────
+const GALERIA_ITEMS = [
+  { src: '/charque.jpg', nombre: 'Charque', span: 'span-2-col' },
+  { src: '/pampaku.jpg', nombre: 'Pampaku', span: 'span-1' },
+  { src: '/lambreado.jpg', nombre: 'Lambreado', span: 'span-1' },
+  { src: '/escabeche-mixto.jpg', nombre: 'Escabeche Mixto', span: 'span-1' },
+  { src: '/fideosuchu.jpg', nombre: 'Fideos Uchu', span: 'span-2-row' },
+  { src: '/jatun-pampaku.jpg', nombre: 'Jatun Pampaku', span: 'span-1' },
+  { src: '/chajchu.jpg', nombre: 'Chajchu', span: 'span-2-col' },
+  { src: '/musica.jpg', nombre: 'Música en Vivo', span: 'span-1' },
+]
+
+// ─── Icono SVG de WhatsApp reutilizable ───────────────────────────────────────
+function WhatsAppIcon({ size = 24 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FLOATING BRAND — Logo flotante glassmorphism (reemplaza Navbar)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function FloatingBrand() {
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
+    const onScroll = () => setVisible(window.scrollY > 100)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const handleNav = (id) => {
-    setMobileOpen(false)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   return (
-    <>
-      <nav className={`nav ${scrolled ? 'scrolled' : ''}`} id="nav">
-        <div className="nav-inner">
-
-          {/* Logo real del restaurante */}
-          <a href="#inicio" className="logo" onClick={e => { e.preventDefault(); handleNav('inicio') }}>
-            <div className="logo-img-wrap">
-              <img src="/logo-hoja.png" alt="El Jardín — Peña Restaurant" className="logo-img" />
-            </div>
-            <div className="logo-text">
-              <span className="logo-name">El Jardín</span>
-              <span className="logo-sub">Peña · Restaurant</span>
-            </div>
-          </a>
-
-          {/* Links */}
-          <ul className="nav-links">
-            {links.map(id => (
-              <li key={id}>
-                <a
-                  href={`#${id}`}
-                  className={activeSection === id ? 'active' : ''}
-                  onClick={e => { e.preventDefault(); handleNav(id) }}
-                >
-                  {id.charAt(0).toUpperCase() + id.slice(1)}
-                </a>
-              </li>
-            ))}
-          </ul>
-
-          {/* WhatsApp CTA */}
-          <div className="nav-cta">
-            <a
-              href="https://wa.me/59176995052"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="nav-whatsapp"
-            >
-              <MessageCircle size={16} />
-              WhatsApp
-            </a>
-          </div>
-
-          {/* Hamburger */}
-          <button
-            className="nav-toggle"
-            onClick={() => setMobileOpen(o => !o)}
-            aria-label="Menú"
-          >
-            {mobileOpen ? <X size={22} /> : <MenuIcon size={22} />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile menu */}
-      <div className={`mobile-menu ${mobileOpen ? 'open' : ''}`}>
-        {links.map(id => (
-          <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); handleNav(id) }}>
-            {id.charAt(0).toUpperCase() + id.slice(1)}
-          </a>
-        ))}
-        <div className="mobile-menu-footer">
-          <a
-            href="https://wa.me/59176995052"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="contact-whatsapp-btn"
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            <MessageCircle size={18} />
-            Escribir por WhatsApp
-          </a>
-        </div>
+    <div className={`floating-brand ${visible ? 'visible' : ''}`}>
+      <div className="floating-brand-logo">
+        <img src="/logo-hoja.png" alt="El Jardín" />
       </div>
-    </>
+      <span className="floating-brand-text">El Jardín</span>
+    </div>
   )
 }
 
-// ─── HERO ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  HERO GALLERY — Slideshow fullscreen con Ken Burns
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function Hero() {
+function HeroGallery() {
+  const [indiceActual, setIndiceActual] = useState(0)
+  const [indicePrevio, setIndicePrevio] = useState(null)
+  const timerRef = useRef(null)
+  const total = HERO_SLIDES.length
+
+  // Ciclo automático: 6s por slide, 1.5s de crossfade
+  const avanzarSlide = useCallback(() => {
+    setIndicePrevio(indiceActual)
+    const siguiente = (indiceActual + 1) % total
+    setTimeout(() => {
+      setIndicePrevio(null)
+    }, 1500)
+    setIndiceActual(siguiente)
+  }, [indiceActual, total])
+
+  useEffect(() => {
+    timerRef.current = setInterval(avanzarSlide, 6000)
+    return () => clearInterval(timerRef.current)
+  }, [avanzarSlide])
+
   return (
-    <section className="hero" id="inicio">
-      {/* Portada real de Facebook como fondo */}
-      <div className="hero-bg" style={{ backgroundImage: "url('/hero-bg.jpg')" }} />
-      <div className="hero-overlay" />
-      <div className="hero-content container">
-        <p className="hero-tag">Peña · Restaurant · Bolivia</p>
-        <h1 className="hero-title">
+    <section className="hero-gallery" id="inicio">
+      {/* Slides */}
+      {HERO_SLIDES.map((src, i) => {
+        const esActual = i === indiceActual
+        const esPrevio = i === indicePrevio
+        const esVisible = esActual || esPrevio
+        return (
+          <div
+            key={i}
+            className={`hero-slide ${esActual ? 'active' : ''} ${esPrevio ? 'prev' : ''}`}
+            style={{
+              backgroundImage: `url('${src}')`,
+              opacity: esVisible ? 1 : 0,
+              zIndex: esActual ? 2 : esPrevio ? 1 : 0,
+            }}
+          />
+        )
+      })}
+
+      {/* Overlay oscuro gradiente */}
+      <div className="hero-gallery-overlay" />
+
+      {/* Contenido mínimo superpuesto */}
+      <div className="hero-gallery-content">
+        <div className="hero-gallery-logo">
+          <img src="/logo-hoja.png" alt="El Jardín" />
+        </div>
+        <h1 className="hero-gallery-title">
           Restaurante<br />
           <em>El Jardín</em>
         </h1>
-        <p className="hero-desc">
-          Sabores que conectan con nuestras raíces — Pique, Charque,
-          Caldos, Planchitas, música en vivo y mucho más.
-        </p>
-        <div className="hero-btns">
-          <a href="#menu" className="btn btn-primary">
-            <Utensils size={17} /> Ver Menú
-          </a>
-          <a href="#contacto" className="btn btn-outline">
-            <MapPin size={17} /> Nuestra Ubicación
-          </a>
-        </div>
-        <div className="hero-badges">
-          <div className="hero-badge">
-            <span className="hero-badge-num">100%</span>
-            <span className="hero-badge-label">Auténtico</span>
-          </div>
-          <div className="hero-badge">
-            <span className="hero-badge-num">+15</span>
-            <span className="hero-badge-label">Platos típicos</span>
-          </div>
-          <div className="hero-badge">
-            <span className="hero-badge-num">Lun–Dom</span>
-            <span className="hero-badge-label">Abierto siempre</span>
-          </div>
-        </div>
+        <p className="hero-gallery-sub">Peña · Restaurant · Cochabamba, Bolivia</p>
       </div>
+
+      {/* Indicador de scroll */}
       <div className="hero-scroll">
         <div className="hero-scroll-line" />
         <span>Descubrir</span>
       </div>
-    </section>
-  )
-}
 
-// ─── NOSOTROS ─────────────────────────────────────────────────────────────────
-
-function Nosotros() {
-  const features = [
-    {
-      icon: <Award size={22} />,
-      title: 'Recetas Auténticas',
-      desc: 'Preparamos cada plato siguiendo tradiciones culinarias bolivianas heredadas de generación en generación.',
-    },
-    {
-      icon: <Leaf size={22} />,
-      title: 'Ingredientes Frescos',
-      desc: 'Trabajamos con proveedores locales para garantizar la frescura y calidad en cada preparación.',
-    },
-    {
-      icon: <Heart size={22} />,
-      title: 'Peña y Música en Vivo',
-      desc: 'Más que un restaurante — somos una peña con grupos en vivo, ambiente cálido y alegría boliviana.',
-    },
-  ]
-
-  return (
-    <section className="section" id="nosotros">
-      <div className="container">
-        <div className="nosotros-grid">
-          {/* Visual */}
-          <div className="nosotros-visual">
-            <div className="nosotros-img-wrap">
-              <img
-                src="/musica.jpg"
-                alt="El Jardín — Cocina y Peña"
-                loading="lazy"
-              />
-              <div className="nosotros-img-overlay" />
-            </div>
-            <div className="nosotros-badge">
-              <span className="nosotros-badge-num">🎵</span>
-              <span className="nosotros-badge-text">Peña Boliviana</span>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="nosotros-content">
-            <div className="nosotros-text">
-              <span className="section-tag">Nuestra Historia</span>
-              <h2 className="section-title" style={{ textAlign: 'left', marginTop: '16px' }}>
-                Un lugar con sabor<br />a tradición
-              </h2>
-              <p>
-                El Jardín nació como peña y restaurante con la misión de ofrecer la auténtica comida
-                boliviana en un ambiente cálido y familiar. Cada plato está preparado con ingredientes
-                frescos y recetas que pasan de generación en generación, honrando la riqueza culinaria
-                de Bolivia.
-              </p>
-            </div>
-            <div className="nosotros-features">
-              {features.map((f, i) => (
-                <div className="nosotros-feature" key={i}>
-                  <div className="nosotros-feature-icon">{f.icon}</div>
-                  <div className="nosotros-feature-text">
-                    <h4>{f.title}</h4>
-                    <p>{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Indicadores de slide */}
+      <div className="hero-slide-indicators">
+        {HERO_SLIDES.map((_, i) => (
+          <button
+            key={i}
+            className={`hero-indicator ${i === indiceActual ? 'active' : ''}`}
+            onClick={() => {
+              clearInterval(timerRef.current)
+              setIndicePrevio(indiceActual)
+              setIndiceActual(i)
+              setTimeout(() => setIndicePrevio(null), 1500)
+              timerRef.current = setInterval(avanzarSlide, 6000)
+            }}
+            aria-label={`Ir a foto ${i + 1}`}
+          />
+        ))}
       </div>
     </section>
   )
 }
 
-// ─── MENÚ ─────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GALERÍA MOSAICO — Grid de fotos con hover reveal y stagger
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function MenuSection() {
-  const [activeTab, setActiveTab] = useState('platos')
+function GaleriaMosaico() {
+  const gridRef = useRef(null)
+
+  useEffect(() => {
+    const nodos = gridRef.current?.querySelectorAll('.mosaic-item')
+    if (!nodos || nodos.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+    )
+
+    nodos.forEach((nodo) => observer.observe(nodo))
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <section className="section section-dark" id="menu">
+    <section className="section" id="cocina">
       <div className="container">
         <div className="section-header">
-          <span className="section-tag">Nuestra Carta</span>
-          <h2 className="section-title">Lo que ofrecemos</h2>
+          <span className="section-tag">Galería</span>
+          <h2 className="section-title">Nuestra Cocina</h2>
           <p className="section-desc">
-            Platos elaborados con ingredientes frescos y recetas de la tradición boliviana.
+            Platos preparados con amor, recetas ancestrales y los mejores ingredientes de Bolivia.
           </p>
         </div>
 
-        <div className="menu-tabs">
-          {MENU_TABS.map(t => (
-            <button
-              key={t.key}
-              className={`tab-btn ${activeTab === t.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(t.key)}
+        <div className="mosaic-grid" ref={gridRef}>
+          {GALERIA_ITEMS.map((item, i) => (
+            <div
+              className={`mosaic-item ${item.span}`}
+              key={i}
+              style={{ transitionDelay: `${i * 0.08}s` }}
             >
-              {t.icon}
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="menu-grid">
-          {MENU_ITEMS[activeTab].map((item, i) => (
-            <div className="menu-card" key={i} style={{ animationDelay: `${i * 0.06}s` }}>
-              <div className="menu-card-img">
-                {item.img
-                  ? <img src={item.img} alt={item.name} loading="lazy" />
-                  : <div className="menu-card-placeholder">{item.icon}</div>
-                }
-              </div>
-              <div className="menu-card-body">
-                <div className="menu-card-name">{item.name}</div>
-                <div className="menu-card-price">{item.price}</div>
+              <img src={item.src} alt={item.nombre} loading="lazy" />
+              <div className="mosaic-overlay">
+                <span className="mosaic-nombre">{item.nombre}</span>
               </div>
             </div>
           ))}
@@ -337,56 +232,13 @@ function MenuSection() {
   )
 }
 
-// ─── SLIDE MEDIA — renderiza imagen o video ───────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  LIGHTBOX — Modal para ver promociones ampliadas
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function SlideMedia({ promo, isActive, className }) {
-  const videoRef = useRef(null)
-
+function Lightbox({ promo, onClose }) {
   useEffect(() => {
-    if (!videoRef.current) return
-    if (isActive) {
-      videoRef.current.play().catch(() => { })
-    } else {
-      videoRef.current.pause()
-      videoRef.current.currentTime = 0
-    }
-  }, [isActive])
-
-  if (promo.tipo === 'video') {
-    return (
-      <video
-        ref={videoRef}
-        src={promo.imagen_url || promo.datos_base64}
-        className={className}
-        controls
-        playsInline
-        loop
-        style={{ background: '#000' }}
-      />
-    )
-  }
-
-  return (
-    <img
-      src={promo.imagen_url || promo.datos_base64}
-      alt={promo.titulo}
-      className={className}
-      loading="lazy"
-      onError={e => {
-        e.target.style.display = 'none'
-        e.target.parentElement.style.background = 'linear-gradient(135deg, #111a0e, #1e2d18)'
-      }}
-    />
-  )
-}
-
-// ─── PROMO MODAL ──────────────────────────────────────────────────────────────
-
-function PromoModal({ promo, onClose }) {
-  if (!promo) return null;
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -396,32 +248,38 @@ function PromoModal({ promo, onClose }) {
     return () => { document.body.style.overflow = '' }
   }, [])
 
+  if (!promo) return null
+
+  const mediaSrc = promo.imagen_base64 || promo.imagen_url || promo.datos_base64
+
   return (
-    <div className="promo-modal-backdrop" onClick={onClose}>
-      <div className="promo-modal" onClick={e => e.stopPropagation()}>
-        <button className="promo-modal-close" onClick={onClose} aria-label="Cerrar">
+    <div className="lightbox-backdrop" onClick={onClose}>
+      <div className="lightbox" onClick={(e) => e.stopPropagation()}>
+        <button className="lightbox-close" onClick={onClose} aria-label="Cerrar">
           <X size={20} />
         </button>
-        <div className="promo-modal-img-wrap">
-          <SlideMedia
-            promo={promo}
-            isActive={true}
-            className="promo-modal-img"
-          />
+        <div className="lightbox-media">
+          {promo.tipo === 'video' ? (
+            <video src={mediaSrc} controls autoPlay playsInline loop className="lightbox-img" />
+          ) : (
+            <img src={mediaSrc} alt={promo.titulo || 'Promoción'} className="lightbox-img" />
+          )}
         </div>
-        <div className="promo-modal-body">
-          <div className="promo-modal-actions" style={{ justifyContent: 'center' }}>
+        <div className="lightbox-body">
+          {promo.badge && <span className="lightbox-badge">{promo.badge}</span>}
+          {promo.titulo && <h3 className="lightbox-title">{promo.titulo}</h3>}
+          {promo.subtitulo && <p className="lightbox-sub">{promo.subtitulo}</p>}
+          <div className="lightbox-actions">
             <a
               href="https://wa.me/59176995052"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-gold"
-              onClick={onClose}
             >
               <MessageCircle size={18} />
               ¡Me interesa!
             </a>
-            <button className="btn btn-outline" onClick={onClose}>Ver más tarde</button>
+            <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
           </div>
         </div>
       </div>
@@ -429,35 +287,39 @@ function PromoModal({ promo, onClose }) {
   )
 }
 
-// ─── PROMOCIONES ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  AVISOS DESTACADOS — Masonry cards con glow badges (reemplaza Promociones)
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function Promociones({ promosList, loading }) {
-  const [current, setCurrent] = useState(0)
-  const [autoplay, setAutoplay] = useState(true)
-  const timerRef = useRef(null)
+function AvisosDestacados({ promosList, loading }) {
+  const [lightboxPromo, setLightboxPromo] = useState(null)
+  const gridRef = useRef(null)
 
-  const promos = promosList && promosList.length > 0 ? promosList : FALLBACK_PROMOS;
-  const total = promos.length;
+  const promos = promosList && promosList.length > 0 ? promosList : FALLBACK_PROMOS
 
-  const go = useCallback(idx => {
-    if (total === 0) return
-    setCurrent((idx + total) % total)
-  }, [total])
-
-  // Pausa el autoplay cuando el slide activo es un video (el video toma el control)
-  const currentIsVideo = promos[current]?.tipo === 'video'
-
+  // IntersectionObserver para animación de entrada
   useEffect(() => {
-    if (!autoplay || currentIsVideo || loading) return
-    timerRef.current = setInterval(() => go(current + 1), 5500)
-    return () => clearInterval(timerRef.current)
-  }, [autoplay, current, go, currentIsVideo, loading])
+    const nodos = gridRef.current?.querySelectorAll('.aviso-card')
+    if (!nodos || nodos.length === 0) return
 
-  const pause = () => { setAutoplay(false); clearInterval(timerRef.current) }
-  const resume = () => { if (!currentIsVideo) setAutoplay(true) }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.1 }
+    )
+
+    nodos.forEach((nodo) => observer.observe(nodo))
+    return () => observer.disconnect()
+  }, [promos])
 
   return (
-    <section className="section promo-section" id="promociones">
+    <section className="section section-dark" id="promociones">
       <div className="container">
         <div className="section-header">
           <span className="section-tag">Ofertas y Novedades</span>
@@ -468,128 +330,54 @@ function Promociones({ promosList, loading }) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b9a16b', fontSize: '1.2rem', fontFamily: 'Georgia, serif' }}>
-            Cargando promociones...
-          </div>
-        ) : promos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b9a16b', fontSize: '1.2rem', fontFamily: 'Georgia, serif' }}>
-            No hay promociones exclusivas en este momento...
+          <div className="avisos-loading">
+            <div className="avisos-spinner" />
+            <p>Cargando promociones...</p>
           </div>
         ) : (
-          <>
-            <div
-              className="promo-carousel-outer"
-              onMouseEnter={pause}
-              onMouseLeave={resume}
-            >
-              <div className="promo-carousel">
+          <div className="avisos-grid" ref={gridRef}>
+            {promos.map((p, i) => {
+              const mediaSrc = p.imagen_base64 || p.imagen_url || p.datos_base64
+              return (
                 <div
-                  className="promo-track"
-                  style={{ transform: `translateX(-${current * 100}%)` }}
+                  className="aviso-card"
+                  key={i}
+                  style={{ transitionDelay: `${i * 0.1}s` }}
+                  onClick={() => setLightboxPromo(p)}
                 >
-                  {promos.map((p, i) => (
-                    <div className="promo-slide" key={i}>
-                      <div className="promo-slide-frame">
-                        <SlideMedia
-                          promo={p}
-                          isActive={i === current}
-                          className="promo-slide-img-full"
-                        />
-                      </div>
-                      <div className="promo-slide-caption-bar">
-                        <span className="promo-slide-badge">{p.badge}</span>
-                        <span className="promo-slide-bar-title">{p.titulo}</span>
-                        {p.tipo === 'video' && (
-                          <span className="promo-video-indicator">
-                            <Play size={13} style={{ marginRight: 4 }} />
-                            Video
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="aviso-card-bg">
+                    {p.tipo === 'video' ? (
+                      <video src={mediaSrc} muted loop playsInline />
+                    ) : (
+                      <img src={mediaSrc} alt={p.titulo || 'Promoción'} loading="lazy" />
+                    )}
+                  </div>
+                  <div className="aviso-card-overlay">
+                    {p.badge && <span className="aviso-badge">{p.badge}</span>}
+                    <h3 className="aviso-title">{p.titulo || 'Promoción'}</h3>
+                    {p.subtitulo && <p className="aviso-sub">{p.subtitulo}</p>}
+                  </div>
                 </div>
-              </div>
-
-              <button className="promo-arrow promo-arrow-prev" onClick={() => { pause(); go(current - 1) }} aria-label="Anterior">
-                <ChevronLeft size={22} />
-              </button>
-              <button className="promo-arrow promo-arrow-next" onClick={() => { pause(); go(current + 1) }} aria-label="Siguiente">
-                <ChevronRight size={22} />
-              </button>
-            </div>
-
-            <div className="promo-dots">
-              {promos.map((p, i) => (
-                <button
-                  key={i}
-                  className={`promo-dot ${i === current ? 'active' : ''}`}
-                  onClick={() => { pause(); go(i) }}
-                  aria-label={`Ir a promoción ${i + 1}`}
-                />
-              ))}
-            </div>
-
-            <div className="promo-thumbs">
-              {promos.map((p, i) => (
-                <button
-                  key={i}
-                  className={`promo-thumb ${i === current ? 'active' : ''}`}
-                  onClick={() => { pause(); go(i) }}
-                  aria-label={`Promoción ${i + 1}`}
-                >
-                  {p.tipo === 'video'
-                    ? <div className="promo-thumb-video"><Play size={16} /></div>
-                    : <img src={p.imagen_url || p.datos_base64} alt="" />
-                  }
-                </button>
-              ))}
-            </div>
-          </>
+              )
+            })}
+          </div>
         )}
       </div>
+
+      {lightboxPromo && (
+        <Lightbox promo={lightboxPromo} onClose={() => setLightboxPromo(null)} />
+      )}
     </section>
   )
 }
 
-// ─── CONTACTO ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  UBICACIÓN & CONTACTO — Mapa + info + WhatsApp CTA
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function Contacto() {
-  const cards = [
-    {
-      icon: <MapPin size={24} />,
-      title: 'Dirección',
-      content: <>Final, Av. Melchor Perez de Olguin, Cochabamba</>,
-    },
-    {
-      icon: <Clock size={24} />,
-      title: 'Horario',
-      content: <>Lunes a Domingo<br />11:00 — 22:00 hs</>,
-    },
-    {
-      icon: <Phone size={24} />,
-      title: 'Teléfono',
-      content: <a href="tel:+59176995052">+591 76995052</a>,
-    },
-    {
-      icon: <MessageCircle size={24} />,
-      title: 'WhatsApp',
-      content: (
-        <a
-          href="https://wa.me/59176995052"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="contact-whatsapp-btn"
-        >
-          <MessageCircle size={16} />
-          Enviar mensaje
-        </a>
-      ),
-    },
-  ]
-
+function UbicacionContacto() {
   return (
-    <section className="section section-dark" id="contacto">
+    <section className="section ubicacion-section" id="contacto">
       <div className="container">
         <div className="section-header">
           <span className="section-tag">Encuéntranos</span>
@@ -598,21 +386,85 @@ function Contacto() {
             Estamos esperándote con la mesa lista y los platos más ricos de Bolivia.
           </p>
         </div>
-        <div className="contact-grid">
-          {cards.map((c, i) => (
-            <div className="contact-card" key={i}>
-              <div className="contact-card-icon">{c.icon}</div>
-              <h4>{c.title}</h4>
-              <p>{c.content}</p>
+
+        <div className="ubicacion-grid">
+          {/* Mapa embebido */}
+          <div className="ubicacion-mapa">
+            <iframe
+              title="Ubicación Restaurante El Jardín"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-66.17%2C-17.40%2C-66.14%2C-17.385&layer=mapnik&marker=-17.3942,-66.1568"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              allowFullScreen
+            />
+          </div>
+
+          {/* Panel de información */}
+          <div className="ubicacion-info">
+            <div className="ubicacion-info-item">
+              <div className="ubicacion-info-icon">
+                <MapPin size={22} />
+              </div>
+              <div>
+                <h4>Dirección</h4>
+                <p>Final, Av. Melchor Perez de Olguin,<br />Cochabamba, Bolivia</p>
+              </div>
             </div>
-          ))}
+
+            <div className="ubicacion-info-item">
+              <div className="ubicacion-info-icon">
+                <Clock size={22} />
+              </div>
+              <div>
+                <h4>Horario</h4>
+                <p>Lunes a Domingo<br />11:00 — 22:00 hs</p>
+              </div>
+            </div>
+
+            <div className="ubicacion-info-item">
+              <div className="ubicacion-info-icon">
+                <Phone size={22} />
+              </div>
+              <div>
+                <h4>Teléfono</h4>
+                <p><a href="tel:+59176995052">+591 76995052</a></p>
+              </div>
+            </div>
+
+            <div className="ubicacion-info-item">
+              <div className="ubicacion-info-icon whatsapp-icon">
+                <MessageCircle size={22} />
+              </div>
+              <div>
+                <h4>WhatsApp</h4>
+                <p>Escríbenos para reservas y pedidos</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gran botón WhatsApp CTA */}
+        <div className="ubicacion-cta">
+          <a
+            href="https://wa.me/59176995052"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-whatsapp-grande"
+          >
+            <WhatsAppIcon size={24} />
+            Pedir por WhatsApp
+          </a>
         </div>
       </div>
     </section>
   )
 }
 
-// ─── FOOTER ───────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FOOTER — Minimalista
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function Footer() {
   return (
@@ -620,12 +472,16 @@ function Footer() {
       <div className="footer-inner">
         <img src="/logo-hoja.png" alt="El Jardín" className="footer-logo-img" />
         <p className="footer-tagline">Peña · Restaurant · Bolivia</p>
-        <div className="footer-links">
-          <a href="#inicio">Inicio</a>
-          <a href="#nosotros">Nosotros</a>
-          <a href="#menu">Menú</a>
-          <a href="#promociones">Promociones</a>
-          <a href="#contacto">Contacto</a>
+        <div className="footer-social">
+          <a
+            href="https://wa.me/59176995052"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="footer-whatsapp"
+            aria-label="WhatsApp"
+          >
+            <WhatsAppIcon size={20} />
+          </a>
         </div>
         <p className="footer-copy">
           © {new Date().getFullYear()} Restaurante El Jardín · Todos los derechos reservados.
@@ -635,99 +491,68 @@ function Footer() {
   )
 }
 
-// ─── SCROLL TRACKING ──────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  WHATSAPP FAB — Botón flotante con bounce + pulse
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function useActiveSection(sections) {
-  const [active, setActive] = useState(sections[0])
-  useEffect(() => {
-    const refs = sections.map(id => document.getElementById(id))
-    const obs = new IntersectionObserver(
-      entries => { entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id) }) },
-      { threshold: 0.35 }
-    )
-    refs.forEach(el => el && obs.observe(el))
-    return () => obs.disconnect()
-  }, [sections])
-  return active
+function WhatsAppFAB() {
+  return (
+    <a
+      href="https://wa.me/59176995052"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="whatsapp-fab"
+      aria-label="Pedir por WhatsApp"
+    >
+      <span className="whatsapp-fab-icon">
+        <WhatsAppIcon size={28} />
+      </span>
+      <span className="whatsapp-fab-label">¡Haz tu pedido!</span>
+    </a>
+  )
 }
 
-// ─── APP ──────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  APP — Componente principal
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function App() {
-  const [showTop, setShowTop] = useState(false)
-  const [showModal, setShowModal] = useState(false)
+  // ── Promociones desde la API del backend ──
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
 
-  const sections = ['inicio', 'nosotros', 'menu', 'promociones', 'contacto']
-  const activeSection = useActiveSection(sections)
-
+  // Cargar PROMOCIONES desde el backend
   useEffect(() => {
-    if (!GOOGLE_SHEETS_CSV_URL) {
-      // Si no hay URL configurada, muestra las variables por defecto tras 1 segundo
-      setTimeout(() => setLoadingPromos(false), 1000)
-      return
-    }
-
-    Papa.parse(GOOGLE_SHEETS_CSV_URL, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data;
+    const controller = new AbortController()
+    fetch(`${API_URL}/api/promociones`, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar promociones')
+        return res.json()
+      })
+      .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          // Las respuestas del formulario vienen de más antigua a más nueva.
-          // Tomamos las últimas 5 y las mostramos de más nueva a más antigua.
-          const mapped = data
-            .filter(row => row['Link de foto o video'] && row['Link de foto o video'].trim() !== '')
-            .slice(-5)      // últimas 5 filas
-            .reverse()     // la más nueva primero
-            .map(row => ({
-              tipo: (row['Tipo de archivo'] || 'imagen').toLowerCase().trim() === 'video' ? 'video' : 'imagen',
-              imagen_url: (row['Link de foto o video'] || '').trim(),
-              badge: (row['Peña etiqueta'] || '').trim() || 'Promoción',
-              titulo: (row['Titulo de la Promocion'] || '').trim() || 'Novedad del Mes',
-              subtitulo: (row['Subtitulo o Descripcion'] || '').trim(),
-            }))
-          setPromosAPI(mapped)
+          setPromosAPI(data)
         }
         setLoadingPromos(false)
-      },
-      error: (error) => {
-        console.error("Error al leer Google Sheets CSV:", error)
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn('No se pudo cargar promociones desde la API, usando fallback:', err.message)
+        }
         setLoadingPromos(false)
-      }
-    })
-  }, [])
-
-  useEffect(() => {
-    const onScroll = () => setShowTop(window.scrollY > 400)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    const t = setTimeout(() => setShowModal(true), 1800)
-    return () => clearTimeout(t)
+      })
+    return () => controller.abort()
   }, [])
 
   return (
     <>
-      <Navbar activeSection={activeSection} />
-      <Hero />
-      <Nosotros />
-      <MenuSection />
-      <Promociones promosList={promosAPI} loading={loadingPromos} />
-      <Contacto />
+      <FloatingBrand />
+      <HeroGallery />
+      <GaleriaMosaico />
+      <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
+      <UbicacionContacto />
       <Footer />
-      <button
-        className={`back-to-top ${showTop ? 'visible' : ''}`}
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        aria-label="Volver arriba"
-      >
-        <ChevronUp size={22} />
-      </button>
-      {showModal && <PromoModal promo={promosAPI.length > 0 ? promosAPI[0] : FALLBACK_PROMOS[0]} onClose={() => setShowModal(false)} />}
+      <WhatsAppFAB />
     </>
   )
 }
