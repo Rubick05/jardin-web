@@ -466,7 +466,7 @@ function Lightbox({ promo, onClose }) {
           {promo.subtitulo && <p className="lightbox-sub">{promo.subtitulo}</p>}
           <div className="lightbox-actions">
             <a
-              href="https://wa.me/59176995052"
+              href={`https://wa.me/59169420202?text=${encodeURIComponent('Hola El Jardín! Me interesa el evento: ' + (promo.titulo || ''))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-gold"
@@ -570,7 +570,7 @@ function AvisosDestacados({ promosList, loading }) {
 //  UBICACIÓN & CONTACTO — Mapa + info + WhatsApp CTA
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function UbicacionContacto() {
+function UbicacionContacto({ onOpenReserva }) {
   return (
     <section className="section ubicacion-section" id="contacto">
       <div className="container">
@@ -604,7 +604,23 @@ function UbicacionContacto() {
               </div>
               <div>
                 <h4>Dirección</h4>
-                <p>Final, Av. Melchor Perez de Olguin,<br />Cochabamba, Bolivia</p>
+                <a 
+                  href="https://maps.app.goo.gl/S5uYzZB4ZRNTUoV16"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors block text-sm"
+                >
+                  Final, Av. Melchor Perez de Olguin,<br />Cochabamba, Bolivia
+                </a>
+                <a 
+                  href="https://maps.app.goo.gl/S5uYzZB4ZRNTUoV16"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-2 bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-lg text-xs hover:bg-primary/95 transition-colors shadow-md border-none cursor-pointer"
+                >
+                  <MapPin size={12} />
+                  Ver en Google Maps
+                </a>
               </div>
             </div>
 
@@ -613,8 +629,11 @@ function UbicacionContacto() {
                 <Clock size={22} />
               </div>
               <div>
-                <h4>Horario</h4>
-                <p>Lunes a Domingo<br />11:00 — 22:00 hs</p>
+                <h4>Horario de Atención</h4>
+                <p style={{ fontSize: '13px', lineHeight: '1.4' }}>
+                  <strong>Jueves:</strong> 11:00 — 23:00 hs<br />
+                  <strong>Sábado y Domingo:</strong> 12:00 — 23:00 hs
+                </p>
               </div>
             </div>
 
@@ -624,7 +643,7 @@ function UbicacionContacto() {
               </div>
               <div>
                 <h4>Teléfono</h4>
-                <p><a href="tel:+59176995052">+591 76995052</a></p>
+                <p><a href="tel:+59169420202">+591 69420202</a></p>
               </div>
             </div>
 
@@ -642,15 +661,14 @@ function UbicacionContacto() {
 
         {/* Gran botón WhatsApp CTA */}
         <div className="ubicacion-cta">
-          <a
-            href="https://wa.me/59176995052"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={onOpenReserva}
             className="btn btn-whatsapp-grande"
+            style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justify: 'center' }}
           >
             <WhatsAppIcon size={24} />
-            Pedir por WhatsApp
-          </a>
+            Reservar Mesa / Hacer Pedido (Asistente Visual)
+          </button>
         </div>
       </div>
     </section>
@@ -661,7 +679,7 @@ function UbicacionContacto() {
 //  FOOTER — Minimalista
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function Footer() {
+function Footer({ onOpenReserva }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id)
     if (el) el.scrollIntoView({ behavior: 'smooth' })
@@ -686,19 +704,18 @@ function Footer() {
 
         <div className="footer-info">
           <p>Av. Melchor Perez de Olguin, Cochabamba, Bolivia</p>
-          <p>Telf: +591 76995052 · Abierto todos los días de 11:00 a 22:00</p>
+          <p>Telf: +591 69420202 · Jueves: 11:00 a 23:00, Sáb y Dom: 12:00 a 23:00</p>
         </div>
 
         <div className="footer-social">
-          <a
-            href="https://wa.me/59176995052"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={onOpenReserva}
             className="footer-whatsapp"
+            style={{ border: 'none', cursor: 'pointer', background: 'transparent', color: 'inherit' }}
             aria-label="WhatsApp"
           >
             <WhatsAppIcon size={20} />
-          </a>
+          </button>
         </div>
 
         <p className="footer-copy">
@@ -713,20 +730,330 @@ function Footer() {
 //  WHATSAPP FAB — Botón flotante con bounce + pulse
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function WhatsAppFAB() {
+function WhatsAppFAB({ onOpenReserva }) {
   return (
-    <a
-      href="https://wa.me/59176995052"
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      onClick={onOpenReserva}
       className="whatsapp-fab"
+      style={{ border: 'none', cursor: 'pointer' }}
       aria-label="Pedir por WhatsApp"
     >
       <span className="whatsapp-fab-icon">
         <WhatsAppIcon size={28} />
       </span>
-      <span className="whatsapp-fab-label">¡Haz tu pedido!</span>
-    </a>
+      <span className="whatsapp-fab-label">Asistente Reserva</span>
+    </button>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODAL INTERACTIVO DE RESERVA Y PEDIDO GUIADO CON IMÁGENES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ModalReservaInteractiva({ open, onClose, menuItems }) {
+  const [paso, setPaso] = useState(1)
+  const [nombre, setNombre] = useState("")
+  const [personas, setPersonas] = useState(2)
+  const [fecha, setFecha] = useState("")
+  const [hora, setHora] = useState("")
+  const [pedido, setPedido] = useState({}) // { item_id: cantidad }
+  const [alertaFecha, setAlertaFecha] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      setPaso(1)
+      setNombre("")
+      setPersonas(2)
+      setFecha("")
+      setHora("")
+      setPedido({})
+      setAlertaFecha("")
+    }
+  }, [open])
+
+  if (!open) return null
+
+  // Validar si la fecha cae en jueves (4), sábado (6) o domingo (0)
+  const handleFechaChange = (e) => {
+    const seleccionada = e.target.value
+    setFecha(seleccionada)
+    if (!seleccionada) {
+      setAlertaFecha("")
+      return
+    }
+    const diaSemana = new Date(seleccionada + 'T12:00:00').getDay()
+    if (diaSemana !== 4 && diaSemana !== 6 && diaSemana !== 0) {
+      setAlertaFecha("⚠️ Nota: Solo abrimos Jueves, Sábados y Domingos. Por favor, selecciona uno de estos días para tu reserva.")
+    } else {
+      setAlertaFecha("")
+    }
+  }
+
+  const itemsSeleccionados = Object.entries(pedido)
+    .map(([id, cant]) => {
+      const item = menuItems.find(p => p.id === id)
+      return item ? { ...item, cantidad: cant } : null
+    })
+    .filter(Boolean)
+
+  const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
+
+  const enviarWhatsApp = () => {
+    if (!nombre.trim() || !fecha || !hora) {
+      alert("Por favor completa los detalles de la reserva (Nombre, Fecha y Hora).")
+      return
+    }
+
+    const itemStrings = itemsSeleccionados.map(
+      item => `- *${item.cantidad}x* ${item.nombre} (Bs. ${(item.precio_actual * item.cantidad).toFixed(0)})`
+    )
+
+    const scheduleText = new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })
+
+    const mensaje = `*¡Hola El Jardín! Quisiera realizar una reserva/pedido:*
+
+*Detalles de la Reserva:*
+- *Nombre:* ${nombre}
+- *Personas:* ${personas} personas
+- *Fecha:* ${scheduleText}
+- *Hora de Llegada:* ${hora} hs
+
+${itemStrings.length > 0 ? `*Pedido Anticipado:*
+${itemStrings.join('\n')}
+
+*Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
+
+¡Muchas gracias! Nos vemos pronto.`
+
+    const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
+    window.open(url, '_blank')
+    onClose()
+  }
+
+  return (
+    <div className="lightbox-backdrop" onClick={onClose}>
+      <div 
+        className="lightbox interactive-booking-modal" 
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '580px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <button className="lightbox-close" onClick={onClose} aria-label="Cerrar">
+          <X size={20} />
+        </button>
+
+        {/* Modal Header */}
+        <div style={{ padding: '24px 24px 16px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <h3 className="lightbox-title" style={{ margin: 0, fontSize: '22px', fontFamily: 'Playfair Display, serif', color: '#f59e0b' }}>
+            Asistente de Reserva & Pedido
+          </h3>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#888' }}>
+            Paso {paso} de 3 · {paso === 1 ? 'Tus Datos' : paso === 2 ? 'Elige tu Menú (Opcional)' : 'Resumen'}
+          </p>
+        </div>
+
+        {/* Modal Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          
+          {/* PASO 1: DATOS DE LA RESERVA */}
+          {paso === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Tu Nombre</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: Alejandra Flores" 
+                  value={nombre}
+                  onChange={e => setNombre(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Nº de Personas</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="50"
+                    value={personas}
+                    onChange={e => setPersonas(parseInt(e.target.value) || 1)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Hora de Llegada</label>
+                  <input 
+                    type="time" 
+                    value={hora}
+                    onChange={e => setHora(e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Fecha de Reserva</label>
+                <input 
+                  type="date" 
+                  value={fecha}
+                  onChange={handleFechaChange}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                />
+                {alertaFecha && (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '500', lineHeight: '1.4' }}>
+                    {alertaFecha}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* PASO 2: ELEGIR PLATOS CON IMÁGENES */}
+          {paso === 2 && (
+            <div>
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#aaa' }}>
+                Selecciona los platos que desees pedir de forma anticipada (opcional, puedes avanzar sin elegir platos):
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {menuItems.filter(item => item.disponible !== false).map((item) => {
+                  const cant = pedido[item.id] || 0
+                  const img = item.imagen_base64 || item.url_imagen
+                  return (
+                    <div 
+                      key={item.id} 
+                      style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}
+                    >
+                      {/* Miniatura imagen */}
+                      <div style={{ width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', background: '#222', flexShrink: 0 }}>
+                        {img ? (
+                          <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#555' }}>🍽️</div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.nombre}</h4>
+                        <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(item.precio_actual).toFixed(0)}</span>
+                      </div>
+
+                      {/* Cantidad Selector */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '3px', borderRadius: '6px' }}>
+                        <button 
+                          onClick={() => {
+                            setPedido(prev => {
+                              const next = { ...prev }
+                              if (next[item.id] > 1) next[item.id]--
+                              else delete next[item.id]
+                              return next
+                            })
+                          }}
+                          style={{ width: '26px', height: '26px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          -
+                        </button>
+                        <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>{cant}</span>
+                        <button 
+                          onClick={() => {
+                            setPedido(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))
+                          }}
+                          style={{ width: '26px', height: '26px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* PASO 3: RESUMEN Y ENVIAR */}
+          {paso === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#f59e0b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', fontWeight: 'bold' }}>Detalles de la Reserva</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px 16px', fontSize: '13px' }}>
+                  <span style={{ color: '#888' }}>Nombre:</span>
+                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{nombre || 'No indicado'}</span>
+                  <span style={{ color: '#888' }}>Personas:</span>
+                  <span style={{ color: '#fff' }}>{personas}</span>
+                  <span style={{ color: '#888' }}>Fecha:</span>
+                  <span style={{ color: '#fff' }}>{fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : 'No seleccionada'}</span>
+                  <span style={{ color: '#888' }}>Hora:</span>
+                  <span style={{ color: '#fff' }}>{hora || 'No seleccionada'} hs</span>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#f59e0b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', fontWeight: 'bold' }}>Pedido Anticipado</h4>
+                {itemsSeleccionados.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#777', fontStyle: 'italic' }}>Sin platos seleccionados (se ordenará en mesa).</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {itemsSeleccionados.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', justify: 'space-between', fontSize: '13px' }}>
+                        <span><span style={{ fontWeight: 'bold', color: '#f59e0b' }}>{item.cantidad}x</span> {item.nombre}</span>
+                        <span style={{ fontWeight: 'bold' }}>Bs. {(item.precio_actual * item.cantidad).toFixed(0)}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '4px', display: 'flex', justify: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+                      <span>Total Estimado:</span>
+                      <span style={{ color: '#f59e0b' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Modal Footer */}
+        <div style={{ padding: '16px 24px 24px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+          {paso > 1 ? (
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setPaso(p => p - 1)}
+              style={{ padding: '8px 16px', fontSize: '13px', height: 'auto' }}
+            >
+              Atrás
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {paso < 3 ? (
+            <button 
+              className="btn btn-gold" 
+              onClick={() => {
+                if (paso === 1 && (!nombre.trim() || !fecha || !hora)) {
+                  alert("Por favor completa Nombre, Fecha y Hora de llegada.")
+                  return
+                }
+                setPaso(p => p + 1)
+              }}
+              style={{ padding: '8px 20px', fontSize: '13px', height: 'auto' }}
+            >
+              Siguiente
+            </button>
+          ) : (
+            <button 
+              className="btn btn-gold" 
+              onClick={enviarWhatsApp}
+              style={{ padding: '10px 24px', fontSize: '13px', background: '#25D366', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', height: 'auto' }}
+            >
+              <MessageCircle size={18} />
+              Enviar Reserva
+            </button>
+          )}
+        </div>
+
+      </div>
+    </div>
   )
 }
 
@@ -742,6 +1069,7 @@ export default function App() {
   const [menuItemsFlat, setMenuItemsFlat] = useState([])
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
+  const [reservaModalAbierto, setReservaModalAbierto] = useState(false)
 
   // Cargar PROMOCIONES desde el backend
   useEffect(() => {
@@ -873,9 +1201,14 @@ export default function App() {
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
-      <UbicacionContacto />
-      <Footer />
-      <WhatsAppFAB />
+      <UbicacionContacto onOpenReserva={() => setReservaModalAbierto(true)} />
+      <Footer onOpenReserva={() => setReservaModalAbierto(true)} />
+      <WhatsAppFAB onOpenReserva={() => setReservaModalAbierto(true)} />
+      <ModalReservaInteractiva 
+        open={reservaModalAbierto} 
+        onClose={() => setReservaModalAbierto(false)} 
+        menuItems={menuItemsFlat} 
+      />
     </>
   )
 }
