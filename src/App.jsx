@@ -293,11 +293,11 @@ function FloatingNavbar() {
 //  HERO GALLERY — Slideshow fullscreen con Ken Burns
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HeroGallery() {
+function HeroGallery({ slides }) {
   const [indiceActual, setIndiceActual] = useState(0)
   const [indicePrevio, setIndicePrevio] = useState(null)
   const timerRef = useRef(null)
-  const total = HERO_SLIDES.length
+  const total = slides.length
 
   // Ciclo automático: 6s por slide, 1.5s de crossfade
   const avanzarSlide = useCallback(() => {
@@ -317,7 +317,7 @@ function HeroGallery() {
   return (
     <section className="hero-gallery" id="inicio">
       {/* Slides */}
-      {HERO_SLIDES.map((src, i) => {
+      {slides.map((src, i) => {
         const esActual = i === indiceActual
         const esPrevio = i === indicePrevio
         const esVisible = esActual || esPrevio
@@ -378,7 +378,7 @@ function HeroGallery() {
 
       {/* Indicadores de slide */}
       <div className="hero-slide-indicators">
-        {HERO_SLIDES.map((_, i) => (
+        {slides.map((_, i) => (
           <button
             key={i}
             className={`hero-indicator ${i === indiceActual ? 'active' : ''}`}
@@ -401,7 +401,7 @@ function HeroGallery() {
 //  GALERÍA MOSAICO — Grid de fotos con hover reveal y stagger
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function GaleriaMosaico() {
+function GaleriaMosaico({ items }) {
   const gridRef = useRef(null)
 
   useEffect(() => {
@@ -422,7 +422,7 @@ function GaleriaMosaico() {
 
     nodos.forEach((nodo) => observer.observe(nodo))
     return () => observer.disconnect()
-  }, [])
+  }, [items])
 
   return (
     <section className="section" id="cocina">
@@ -436,7 +436,7 @@ function GaleriaMosaico() {
         </div>
 
         <div className="mosaic-grid" ref={gridRef}>
-          {GALERIA_ITEMS.map((item, i) => (
+          {items.map((item, i) => (
             <div
               className={`mosaic-item ${item.span}`}
               key={i}
@@ -462,8 +462,9 @@ function GaleriaMosaico() {
 //  NUESTRA CARTA — Menú Bento con pestañas interactivas
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function NuestraCarta() {
+function NuestraCarta({ menu }) {
   const [categoriaActiva, setCategoriaActiva] = useState('principales')
+  const platos = menu[categoriaActiva] || []
 
   return (
     <section className="section section-dark" id="menu">
@@ -491,19 +492,42 @@ function NuestraCarta() {
 
         {/* Grilla de platos */}
         <div className="menu-grid">
-          {MENU_ITEMS[categoriaActiva].map((item, index) => (
-            <div className="menu-item-card" key={index}>
-              <div className="menu-item-header">
-                <h3 className="menu-item-name">{item.nombre}</h3>
-                <span className="menu-item-price">{item.precio}</span>
-              </div>
-              <p className="menu-item-desc">{item.descripcion}</p>
-              <div className="menu-item-ingredients">
-                <span className="menu-item-ingredients-label">Ingredientes:</span>
-                <p className="menu-item-ingredients-text">{item.ingredientes}</p>
-              </div>
+          {platos.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-muted">
+              No hay platos disponibles en esta categoría por el momento.
             </div>
-          ))}
+          ) : (
+            platos.map((item, index) => {
+              const imageSrc = item.imagen_base64 || item.url_imagen
+              const formattedPrice = typeof item.precio_actual === 'number'
+                ? `Bs. ${item.precio_actual}`
+                : item.precio || 'Consultar'
+              return (
+                <div className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} key={index}>
+                  {imageSrc && (
+                    <div className="menu-item-image">
+                      <img src={imageSrc} alt={item.nombre} loading="lazy" />
+                    </div>
+                  )}
+                  <div className="menu-item-content">
+                    <div>
+                      <div className="menu-item-header">
+                        <h3 className="menu-item-name">{item.nombre}</h3>
+                        <span className="menu-item-price">{formattedPrice}</span>
+                      </div>
+                      <p className="menu-item-desc">{item.descripcion || 'Sin descripción'}</p>
+                    </div>
+                    {item.ingredientes && (
+                      <div className="menu-item-ingredients">
+                        <span className="menu-item-ingredients-label">Ingredientes:</span>
+                        <p className="menu-item-ingredients-text">{item.ingredientes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
     </section>
@@ -819,7 +843,10 @@ function WhatsAppFAB() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function App() {
-  // ── Promociones desde la API del backend ──
+  // ── Estados para portadas, mosaico y menú dinámicos ──
+  const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
+  const [galeriaItems, setGaleriaItems] = useState(GALERIA_ITEMS)
+  const [menu, setMenu] = useState(MENU_ITEMS)
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
 
@@ -846,12 +873,90 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
+  // Cargar CONFIGURACIÓN WEB (Hero Slides y Galería Mosaico) desde el backend
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`${API_URL}/api/web-config`, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar config web')
+        return res.json()
+      })
+      .then(data => {
+        if (data.hero_slides && Array.isArray(data.hero_slides) && data.hero_slides.length > 0) {
+          setHeroSlides(data.hero_slides)
+        }
+        if (data.galeria_mosaico && Array.isArray(data.galeria_mosaico) && data.galeria_mosaico.length > 0) {
+          setGaleriaItems(data.galeria_mosaico)
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn('No se pudo cargar la configuración web, usando fallbacks:', err.message)
+        }
+      })
+    return () => controller.abort()
+  }, [])
+
+  // Helper para clasificar categorías del menú
+  const clasificarCategoria = (categoria) => {
+    const cat = (categoria || '').toLowerCase().trim()
+    if (cat.includes('refresco') || cat.includes('cerveza') || cat.includes('bebida') || cat.includes('jugo') || cat.includes('agua') || cat.includes('trago')) {
+      return 'bebidas'
+    }
+    if (cat.includes('caldo') || cat.includes('sopa') || cat.includes('entrada') || cat.includes('acompañamiento') || cat.includes('piqueo') || cat.includes('guarnicion') || cat.includes('guarnición')) {
+      return 'entradas'
+    }
+    return 'principales' // Por defecto
+  }
+
+  // Cargar ELEMENTOS DEL MENÚ desde el backend
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`${API_URL}/api/menu`, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar menú')
+        return res.json()
+      })
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          // Filtrar platos disponibles
+          const disponibles = data.filter(item => item.disponible !== false)
+          
+          const nuevoMenu = {
+            principales: [],
+            entradas: [],
+            bebidas: []
+          }
+
+          disponibles.forEach(item => {
+            const catClasificada = clasificarCategoria(item.categoria)
+            nuevoMenu[catClasificada].push({
+              nombre: item.nombre,
+              precio_actual: item.precio_actual,
+              descripcion: item.descripcion,
+              imagen_base64: item.imagen_base64,
+              url_imagen: item.url_imagen,
+              ingredientes: item.ingredientes
+            })
+          })
+
+          setMenu(nuevoMenu)
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn('No se pudo cargar el menú desde la API, usando fallbacks:', err.message)
+        }
+      })
+    return () => controller.abort()
+  }, [])
+
   return (
     <>
       <FloatingNavbar />
-      <HeroGallery />
-      <GaleriaMosaico />
-      <NuestraCarta />
+      <HeroGallery slides={heroSlides} />
+      <GaleriaMosaico items={galeriaItems} />
+      <NuestraCarta menu={menu} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
       <UbicacionContacto />
       <Footer />
