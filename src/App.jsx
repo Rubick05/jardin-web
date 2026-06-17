@@ -11,160 +11,52 @@ const API_URL = import.meta.env.VITE_API_URL
 const FALLBACK_PROMOS = [
   {
     tipo: 'imagen',
-    imagen_base64: '/promo5.jpg',
-    badge: 'Tradición Familiar',
-    titulo: 'Pampaku de Domingo',
-    subtitulo: 'Asado tradicional cocido bajo tierra, servido en abundancia para compartir en familia.',
-  },
-  {
-    tipo: 'imagen',
-    imagen_base64: '/promo2.jpg',
-    badge: 'Noches de Peña',
-    titulo: 'Folklore en Vivo',
+    imagen_base64: '/musica.jpg',
+    badge: 'Viernes Folclórico',
+    titulo: 'Música en Vivo',
     subtitulo: 'Disfruta de la mejor música andina y folklórica con destacados artistas nacionales.',
   },
   {
     tipo: 'imagen',
-    imagen_base64: '/promo3.jpg',
-    badge: 'Sabor Valluno',
-    titulo: 'Chicha de Maíz Cocida',
-    subtitulo: 'Prueba la chicha cochabambina elaborada artesanalmente en jarra de barro tradicional.',
+    imagen_base64: '/promo2.jpg',
+    badge: 'Fin de Semana',
+    titulo: 'Gran Pampaku Valluno',
+    subtitulo: 'Asado tradicional cocido bajo tierra, servido en abundancia para compartir en familia.',
   }
 ]
 
 // ─── Imágenes para el Hero Slideshow ──────────────────────────────────────────
 const HERO_SLIDES = [
-  '/hero-bg.jpg',
-  '/musica.jpg',
-  '/pampaku.jpg',
-  '/lambreado.jpg',
-  '/escabeche-mixto.jpg',
-  '/charque.jpg',
-  '/chajchu.jpg',
+  '/hero-bg.jpg'
 ]
 
 // ─── Imágenes para la Galería Mosaico ─────────────────────────────────────────
 const GALERIA_ITEMS = [
   { 
     src: '/charque.jpg', 
-    nombre: 'Charque', 
+    nombre: 'Charque Tradicional', 
     span: 'span-2-col',
     tagline: 'Carne deshidratada crujiente',
     detalles: 'Con mote, huevo y queso criollo.'
   },
   { 
     src: '/pampaku.jpg', 
-    nombre: 'Pampaku', 
+    nombre: 'Pampaku Valluno', 
     span: 'span-1',
     tagline: 'Cocción tradicional bajo tierra',
-    detalles: 'Mix de carnes y tubérculos al horno.'
-  },
-  { 
-    src: '/lambreado.jpg', 
-    nombre: 'Lambreado', 
-    span: 'span-1',
-    tagline: 'Conejo criollo apanado',
-    detalles: 'Bañado con ahogado de ají colorado.'
-  },
-  { 
-    src: '/escabeche-mixto.jpg', 
-    nombre: 'Escabeche Mixto', 
-    span: 'span-1',
-    tagline: 'Patitas de cerdo marinadas',
-    detalles: 'Verduras selectas en conserva.'
-  },
-  { 
-    src: '/fideosuchu.jpg', 
-    nombre: 'Fideos Uchu', 
-    span: 'span-2-row',
-    tagline: 'Fideos picantes tradicionales',
-    detalles: 'Con carne de res y papa entera cocida.'
-  },
-  { 
-    src: '/jatun-pampaku.jpg', 
-    nombre: 'Jatun Pampaku', 
-    span: 'span-1',
-    tagline: 'Gran asado bajo tierra',
-    detalles: 'Para compartir entre amigos y familia.'
-  },
-  { 
-    src: '/chajchu.jpg', 
-    nombre: 'Chajchu', 
-    span: 'span-2-col',
-    tagline: 'Plato valluno tradicional',
-    detalles: 'Carne desmechada, chuño, ají y huevo.'
-  },
-  { 
-    src: '/musica.jpg', 
-    nombre: 'Música en Vivo', 
-    span: 'span-1',
-    tagline: 'Noches de Peña cultural',
-    detalles: 'Artistas en vivo todos los fines de semana.'
-  },
+    detalles: 'Mix de carnes y tubérculos.'
+  }
 ]
 
 // ─── Datos del Menú (Nuestra Carta) ───────────────────────────────────────────
 const MENU_CATEGORIAS = [
   { id: 'principales', nombre: 'Platos Tradicionales' },
-  { id: 'entradas', nombre: 'Entradas y Acompañamientos' },
-  { id: 'bebidas', nombre: 'Bebidas Tradicionales' }
+  { id: 'entradas', nombre: 'Entradas y Acompañamientos' }
 ]
 
 const MENU_ITEMS = {
-  principales: [
-    {
-      nombre: 'Pampaku Tradicional',
-      precio: 'Bs. 70',
-      descripcion: 'Carnes selectas de res, cordero, cerdo y pollo sazonadas con hierbas aromáticas locales y cocidas bajo tierra con piedras calientes al estilo de los valles.',
-      ingredientes: 'Papa, camote, oca, plátano, habas, carnes de res, cordero, cerdo y pollo'
-    },
-    {
-      nombre: 'Charque K\'Full',
-      precio: 'Bs. 65',
-      descripcion: 'Filetes delgados de carne deshidratada y frita hasta lograr una textura crocante y sabrosa, acompañado de mote de maíz y huevo duro.',
-      ingredientes: 'Charque crujiente de res, mote de maíz, huevo duro, queso criollo artesanal'
-    },
-    {
-      nombre: 'Lambreado de Conejo',
-      precio: 'Bs. 55',
-      descripcion: 'Conejo criollo tierno, apanado y dorado a la perfección, bañado con un delicioso y picante ahogado tradicional de ají colorado.',
-      ingredientes: 'Conejo criollo, pan molido especiado, ají colorado, ensalada de la casa'
-    },
-    {
-      nombre: 'Fideos Uchu',
-      precio: 'Bs. 50',
-      descripcion: 'Plato picante tradicional de fideos con ají colorado de la casa, servido con jugosos trozos de carne y papas enteras.',
-      ingredientes: 'Fideo grueso seleccionado, ají colorado valluno, carne de res, papa cocida'
-    }
-  ],
-  entradas: [
-    {
-      nombre: 'Escabeche Mixto',
-      precio: 'Bs. 30',
-      descripcion: 'Patitas de cerdo marinadas y verduras en conserva en vinagreta artesanal con pimienta y especias locales.',
-      ingredientes: 'Patitas de cerdo, zanahoria, cebolla morada, locoto picante, vinagre de manzana'
-    },
-    {
-      nombre: 'Pastel de Choclo',
-      precio: 'Bs. 25',
-      descripcion: 'Pastel horneado de maíz tierno molido a mano, relleno de abundante queso criollo derretido con un sutil aroma a canela.',
-      ingredientes: 'Choclo tierno del valle, queso criollo, canela molida, huevos de campo'
-    }
-  ],
-  bebidas: [
-    {
-      nombre: 'Chicha Cochabambina',
-      precio: 'Bs. 15',
-      descripcion: 'Bebida fermentada tradicional de maíz amarillo cultivado en los valles cochabambinos, servida bien fría en jarra de barro.',
-      ingredientes: 'Maíz amarillo fermentado de manera artesanal, agua, azúcar'
-    },
-    {
-      nombre: 'Cerveza Huari Tradicional',
-      precio: 'Bs. 25',
-      descripcion: 'Cerveza premium nacional elaborada con agua pura de vertiente andina, ideal para maridar con la comida picante.',
-      ingredientes: 'Malta seleccionada, agua de vertiente andina, lúpulo'
-    }
-  ]
+  principales: [],
+  entradas: []
 }
 
 // ─── Icono SVG de WhatsApp reutilizable ───────────────────────────────────────
@@ -275,7 +167,7 @@ function FloatingNavbar() {
           className={`floating-navbar-link ${activeSection === 'promociones' ? 'active' : ''}`}
           onClick={() => scrollToSection('promociones')}
         >
-          Promos
+          Eventos
         </a>
         <a 
           className={`floating-navbar-link ${activeSection === 'contacto' ? 'active' : ''}`}
@@ -625,10 +517,10 @@ function AvisosDestacados({ promosList, loading }) {
     <section className="section section-dark" id="promociones">
       <div className="container">
         <div className="section-header">
-          <span className="section-tag">Ofertas y Novedades</span>
-          <h2 className="section-title">Promociones del Mes</h2>
+          <span className="section-tag">Eventos y Novedades</span>
+          <h2 className="section-title">Eventos de la Semana</h2>
           <p className="section-desc">
-            Anuncios especiales, grupos en vivo y eventos del restaurante.
+            Anuncios especiales, grupos en vivo y eventos de la semana.
           </p>
         </div>
 
@@ -788,7 +680,7 @@ function Footer() {
           <a onClick={() => scrollToSection('inicio')}>Inicio</a>
           <a onClick={() => scrollToSection('cocina')}>Nuestra Cocina</a>
           <a onClick={() => scrollToSection('menu')}>Menú</a>
-          <a onClick={() => scrollToSection('promociones')}>Promociones</a>
+          <a onClick={() => scrollToSection('promociones')}>Eventos de la Semana</a>
           <a onClick={() => scrollToSection('contacto')}>Contacto</a>
         </div>
 
@@ -847,6 +739,7 @@ export default function App() {
   const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
   const [galeriaItems, setGaleriaItems] = useState(GALERIA_ITEMS)
   const [menu, setMenu] = useState(MENU_ITEMS)
+  const [menuItemsFlat, setMenuItemsFlat] = useState([])
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
 
@@ -900,10 +793,10 @@ export default function App() {
   // Helper para clasificar categorías del menú
   const clasificarCategoria = (categoria) => {
     const cat = (categoria || '').toLowerCase().trim()
-    if (cat.includes('refresco') || cat.includes('cerveza') || cat.includes('bebida') || cat.includes('jugo') || cat.includes('agua') || cat.includes('trago')) {
+    if (cat.includes('refresco') || cat.includes('cerveza') || cat.includes('bebida') || cat.includes('jugo') || cat.includes('agua') || cat.includes('trago') || cat.includes('refrescos') || cat.includes('cervezas')) {
       return 'bebidas'
     }
-    if (cat.includes('caldo') || cat.includes('sopa') || cat.includes('entrada') || cat.includes('acompañamiento') || cat.includes('piqueo') || cat.includes('guarnicion') || cat.includes('guarnición')) {
+    if (cat.includes('caldo') || cat.includes('sopa') || cat.includes('entrada') || cat.includes('acompañamiento') || cat.includes('piqueo') || cat.includes('guarnicion') || cat.includes('guarnición') || cat.includes('caldos') || cat.includes('entradas')) {
       return 'entradas'
     }
     return 'principales' // Por defecto
@@ -918,29 +811,34 @@ export default function App() {
         return res.json()
       })
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          // Filtrar platos disponibles
-          const disponibles = data.filter(item => item.disponible !== false)
-          
-          const nuevoMenu = {
-            principales: [],
-            entradas: [],
-            bebidas: []
-          }
+        if (Array.isArray(data)) {
+          setMenuItemsFlat(data)
+          if (data.length > 0) {
+            // Filtrar platos disponibles
+            const disponibles = data.filter(item => item.disponible !== false)
+            
+            const nuevoMenu = {
+              principales: [],
+              entradas: []
+            }
 
-          disponibles.forEach(item => {
-            const catClasificada = clasificarCategoria(item.categoria)
-            nuevoMenu[catClasificada].push({
-              nombre: item.nombre,
-              precio_actual: item.precio_actual,
-              descripcion: item.descripcion,
-              imagen_base64: item.imagen_base64,
-              url_imagen: item.url_imagen,
-              ingredientes: item.ingredientes
+            disponibles.forEach(item => {
+              const catClasificada = clasificarCategoria(item.categoria)
+              if (catClasificada !== 'bebidas' && nuevoMenu[catClasificada]) {
+                nuevoMenu[catClasificada].push({
+                  id: item.id,
+                  nombre: item.nombre,
+                  precio_actual: item.precio_actual,
+                  descripcion: item.descripcion,
+                  imagen_base64: item.imagen_base64,
+                  url_imagen: item.url_imagen,
+                  ingredientes: item.ingredientes
+                })
+              }
             })
-          })
 
-          setMenu(nuevoMenu)
+            setMenu(nuevoMenu)
+          }
         }
       })
       .catch(err => {
@@ -951,11 +849,28 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
+  // Resolver ítems del mosaico vinculados con platos del menú
+  const itemsProcesados = galeriaItems.map(item => {
+    if (item.id_elemento_menu) {
+      const plato = menuItemsFlat.find(p => p.id === item.id_elemento_menu)
+      if (plato) {
+        return {
+          ...item,
+          src: plato.imagen_base64 || plato.url_imagen || item.src,
+          nombre: plato.nombre || item.nombre,
+          tagline: item.tagline || plato.descripcion || '',
+          detalles: item.detalles || `Bs. ${plato.precio_actual}`
+        }
+      }
+    }
+    return item
+  })
+
   return (
     <>
       <FloatingNavbar />
       <HeroGallery slides={heroSlides} />
-      <GaleriaMosaico items={galeriaItems} />
+      <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
       <UbicacionContacto />
