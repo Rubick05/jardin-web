@@ -5,7 +5,7 @@ import './index.css'
 // ─── API URL (backend Railway) ────────────────────────────────────────────────
 const API_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace('/api', '')
-  : 'https://restaurante-pelusa-production.up.railway.app'
+  : 'https://restaurante-el-jardin-production-a426.up.railway.app'
 
 // ─── FALLBACK DATA (cuando la API no responde) ────────────────────────────────
 const FALLBACK_PROMOS = [
