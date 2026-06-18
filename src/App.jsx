@@ -587,7 +587,7 @@ function UbicacionContacto({ onOpenReserva }) {
           <div className="ubicacion-mapa">
             <iframe
               title="Ubicación Restaurante El Jardín"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-66.17%2C-17.40%2C-66.14%2C-17.385&layer=mapnik&marker=-17.3942,-66.1568"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3807.0644458861084!2d-66.1884444!3d-17.4086946!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x93e373e23b5150d5%3A0x2f6f6b4ca3b1b7c4!2sRESTAURANT%20EL%20JARD%C3%8DN!5e0!3m2!1ses!2sbo!4v1718739900000!5m2!1ses!2sbo"
               width="100%"
               height="100%"
               style={{ border: 0 }}
