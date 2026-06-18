@@ -51,12 +51,14 @@ const GALERIA_ITEMS = [
 // ─── Datos del Menú (Nuestra Carta) ───────────────────────────────────────────
 const MENU_CATEGORIAS = [
   { id: 'principales', nombre: 'Platos Tradicionales' },
-  { id: 'entradas', nombre: 'Entradas y Acompañamientos' }
+  { id: 'entradas', nombre: 'Entradas y Acompañamientos' },
+  { id: 'bebidas', nombre: 'Bebidas y Refrescos' }
 ]
 
 const MENU_ITEMS = {
   principales: [],
-  entradas: []
+  entradas: [],
+  bebidas: []
 }
 
 // ─── Icono SVG de WhatsApp reutilizable ───────────────────────────────────────
@@ -750,7 +752,7 @@ function WhatsAppFAB({ onOpenReserva }) {
 //  MODAL INTERACTIVO DE RESERVA Y PEDIDO GUIADO CON IMÁGENES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ModalReservaInteractiva({ open, onClose, menuItems }) {
+function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
   const [paso, setPaso] = useState(1)
   const [nombre, setNombre] = useState("")
   const [personas, setPersonas] = useState(2)
@@ -761,15 +763,38 @@ function ModalReservaInteractiva({ open, onClose, menuItems }) {
 
   useEffect(() => {
     if (open) {
+      setNombre(prefillData?.nombre || "")
+      setPersonas(prefillData?.personas || 2)
+      setFecha(prefillData?.fecha || "")
+      setHora(prefillData?.hora || "")
       setPaso(1)
-      setNombre("")
-      setPersonas(2)
-      setFecha("")
-      setHora("")
-      setPedido({})
-      setAlertaFecha("")
+
+      const nuevoPedido = {}
+      if (prefillData?.platos && Array.isArray(prefillData.platos)) {
+        prefillData.platos.forEach(p => {
+          const item = menuItems.find(mi => 
+            mi.nombre.toLowerCase().includes(p.nombre.toLowerCase()) || 
+            p.nombre.toLowerCase().includes(mi.nombre.toLowerCase())
+          )
+          if (item) {
+            nuevoPedido[item.id] = p.cantidad
+          }
+        })
+      }
+      setPedido(nuevoPedido)
+
+      if (prefillData?.fecha) {
+        const diaSemana = new Date(prefillData.fecha + 'T12:00:00').getDay()
+        if (diaSemana !== 4 && diaSemana !== 6 && diaSemana !== 0) {
+          setAlertaFecha("⚠️ Nota: Solo abrimos Jueves, Sábados y Domingos. Por favor, selecciona uno de estos días para tu reserva.")
+        } else {
+          setAlertaFecha("")
+        }
+      } else {
+        setAlertaFecha("")
+      }
     }
-  }, [open])
+  }, [open, prefillData, menuItems])
 
   if (!open) return null
 
@@ -1058,6 +1083,188 @@ ${itemStrings.join('\n')}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  CHATBOT FLOTANTE — Inteligencia Artificial con Gemini
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ChatbotFlotante({ onPreReserva, menuItems }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: '¡Hola! 🌿 Bienvenido a El Jardín. Soy tu asistente inteligente. ¿Te gustaría conocer el menú de hoy, saber nuestros horarios o realizar una reserva?'
+    }
+  ])
+  const [inputValue, setInputValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [ultimaAccion, setUltimaAccion] = useState(null)
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
+
+  const sugerencias = [
+    "¿Qué platos recomiendas?",
+    "¿Qué días y horarios abren?",
+    "¿Dónde están ubicados?",
+    "Quiero hacer una reserva"
+  ]
+
+  const enviarMensaje = async (texto) => {
+    const msg = texto || inputValue
+    if (!msg.trim() || loading) return
+
+    const nuevosMensajes = [...messages, { role: 'user', content: msg }]
+    setMessages(nuevosMensajes)
+    setInputValue('')
+    setLoading(true)
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ messages: nuevosMensajes })
+      })
+
+      if (!response.ok) throw new Error('Error al procesar mensaje')
+
+      const data = await response.json()
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+      
+      if (data.action === 'open_reserva') {
+        setUltimaAccion(data.reservaData)
+      }
+    } catch (error) {
+      console.error(error)
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, he tenido un problema de conexión. ¿Podrías volver a intentarlo?' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleConfirmarReserva = () => {
+    if (ultimaAccion) {
+      onPreReserva(ultimaAccion)
+      setUltimaAccion(null)
+      setIsOpen(false)
+    }
+  }
+
+  return (
+    <div className="chatbot-wrapper">
+      <button 
+        className={`chatbot-toggle ${isOpen ? 'active' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+        aria-label="Abrir Asistente Virtual"
+      >
+        {isOpen ? <X size={24} /> : <MessageCircle size={26} />}
+        {!isOpen && <span className="chatbot-badge-pulse"></span>}
+      </button>
+
+      {isOpen && (
+        <div className="chatbot-window">
+          <div className="chatbot-header">
+            <div className="chatbot-header-info">
+              <div className="chatbot-avatar">🌿</div>
+              <div>
+                <h4 className="chatbot-title">Asistente El Jardín</h4>
+                <span className="chatbot-status">En línea (IA)</span>
+              </div>
+            </div>
+            <button className="chatbot-close-btn" onClick={() => setIsOpen(false)}>
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="chatbot-messages">
+            {messages.map((m, i) => (
+              <div key={i} className={`chatbot-bubble-wrapper ${m.role}`}>
+                <div className={`chatbot-bubble ${m.role}`}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="chatbot-bubble-wrapper assistant">
+                <div className="chatbot-bubble assistant loading">
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                </div>
+              </div>
+            )}
+
+            {ultimaAccion && !loading && (
+              <div className="chatbot-action-card">
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#f59e0b' }}>📅 ¡Formulario de reserva listo!</p>
+                <div className="chatbot-action-details" style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {ultimaAccion.nombre && <div><strong>Nombre:</strong> {ultimaAccion.nombre}</div>}
+                  {ultimaAccion.personas && <div><strong>Personas:</strong> {ultimaAccion.personas}</div>}
+                  {ultimaAccion.fecha && <div><strong>Fecha:</strong> {ultimaAccion.fecha}</div>}
+                  {ultimaAccion.hora && <div><strong>Hora:</strong> {ultimaAccion.hora} hs</div>}
+                  {ultimaAccion.platos && Array.isArray(ultimaAccion.platos) && ultimaAccion.platos.length > 0 && (
+                    <div>
+                      <strong>Pedido:</strong> {ultimaAccion.platos.map(p => `${p.cantidad}x ${p.nombre}`).join(', ')}
+                    </div>
+                  )}
+                </div>
+                <button 
+                  className="btn btn-gold" 
+                  onClick={handleConfirmarReserva} 
+                  style={{ width: '100%', padding: '8px', fontSize: '12px', height: 'auto', border: 'none', cursor: 'pointer' }}
+                >
+                  Confirmar y Completar Formulario
+                </button>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+
+          {messages.length === 1 && (
+            <div className="chatbot-suggestions">
+              {sugerencias.map((s, i) => (
+                <button key={i} className="chatbot-suggestion-btn" onClick={() => enviarMensaje(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <form 
+            className="chatbot-input-form" 
+            onSubmit={(e) => {
+              e.preventDefault();
+              enviarMensaje();
+            }}
+          >
+            <input 
+              type="text" 
+              placeholder="Escribe tu consulta..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              disabled={loading}
+              className="chatbot-input"
+            />
+            <button 
+              type="submit" 
+              className="chatbot-send-btn"
+              disabled={loading || !inputValue.trim()}
+            >
+              ➔
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  APP — Componente principal
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1070,6 +1277,7 @@ export default function App() {
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
   const [reservaModalAbierto, setReservaModalAbierto] = useState(false)
+  const [prefillReserva, setPrefillReserva] = useState(null)
 
   // Cargar PROMOCIONES desde el backend
   useEffect(() => {
@@ -1147,12 +1355,13 @@ export default function App() {
             
             const nuevoMenu = {
               principales: [],
-              entradas: []
+              entradas: [],
+              bebidas: []
             }
 
             disponibles.forEach(item => {
               const catClasificada = clasificarCategoria(item.categoria)
-              if (catClasificada !== 'bebidas' && nuevoMenu[catClasificada]) {
+              if (nuevoMenu[catClasificada]) {
                 nuevoMenu[catClasificada].push({
                   id: item.id,
                   nombre: item.nombre,
@@ -1201,13 +1410,24 @@ export default function App() {
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
-      <UbicacionContacto onOpenReserva={() => setReservaModalAbierto(true)} />
-      <Footer onOpenReserva={() => setReservaModalAbierto(true)} />
-      <WhatsAppFAB onOpenReserva={() => setReservaModalAbierto(true)} />
+      <UbicacionContacto onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
+      <Footer onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
+      <WhatsAppFAB onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
+      <ChatbotFlotante 
+        onPreReserva={(data) => {
+          setPrefillReserva(data);
+          setReservaModalAbierto(true);
+        }}
+        menuItems={menuItemsFlat}
+      />
       <ModalReservaInteractiva 
         open={reservaModalAbierto} 
-        onClose={() => setReservaModalAbierto(false)} 
+        onClose={() => {
+          setReservaModalAbierto(false);
+          setPrefillReserva(null);
+        }} 
         menuItems={menuItemsFlat} 
+        prefillData={prefillReserva}
       />
     </>
   )
