@@ -1104,7 +1104,7 @@ function ChatbotFlotante({ onPreReserva, menuItems }) {
   }, [messages, loading])
 
   const sugerencias = [
-    "¿Qué platos recomiendas?",
+    "¿Qué platos tienen disponibles hoy?",
     "¿Qué días y horarios abren?",
     "¿Dónde están ubicados?",
     "Quiero hacer una reserva"
@@ -1120,7 +1120,7 @@ function ChatbotFlotante({ onPreReserva, menuItems }) {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
