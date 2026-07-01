@@ -840,21 +840,32 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
   const qrTexto = `Seña Reserva El Jardín\nMonto: Bs. ${deposito}\nNombre: ${nombre || 'Cliente'}\nTigo Money: +591 69420202`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&format=png&qzone=1&data=${encodeURIComponent(qrTexto)}`
 
+  // 1. CARGAR BORRADOR AUTOMÁTICAMENTE AL ABRIR
   useEffect(() => {
     if (open) {
-      setNombre(prefillData?.nombre || '')
-      setPersonas(prefillData?.personas || 2)
-      setFecha(prefillData?.fecha || '')
-      setHora(prefillData?.hora || '')
+      const borradorStr = localStorage.getItem('jardin_reserva_temporal')
+      let borrador = null
+      if (borradorStr) {
+        try {
+          borrador = JSON.parse(borradorStr)
+        } catch (e) {
+          console.warn('Error al parsear borrador de reserva:', e)
+        }
+      }
+
+      setNombre(prefillData?.nombre || borrador?.nombre || '')
+      setPersonas(prefillData?.personas || borrador?.personas || 2)
+      setFecha(prefillData?.fecha || borrador?.fecha || '')
+      setHora(prefillData?.hora || borrador?.hora || '')
+      setTipoEntrega(borrador?.tipoEntrega || 'local')
+      setDireccion(borrador?.direccion || '')
+      setZona(borrador?.zona || '')
+      setReferencia(borrador?.referencia || '')
+      setNotasAdicionales(borrador?.notasAdicionales || '')
       setPaso(1)
-      setTipoEntrega('local')
-      setDireccion('')
-      setZona('')
-      setReferencia('')
-      setNotasAdicionales('')
       setImagenPago(null)
 
-      const nuevoPedido = {}
+      let nuevoPedido = {}
       if (prefillData?.platos && Array.isArray(prefillData.platos)) {
         prefillData.platos.forEach(p => {
           const item = menuItems.find(mi =>
@@ -863,17 +874,39 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
           )
           if (item) nuevoPedido[item.id] = p.cantidad
         })
+      } else if (borrador?.pedido) {
+        nuevoPedido = borrador.pedido
       }
       setPedido(nuevoPedido)
 
-      if (prefillData?.fecha) {
-        const dia = new Date(prefillData.fecha + 'T12:00:00').getDay()
+      if (prefillData?.fecha || borrador?.fecha) {
+        const targetFecha = prefillData?.fecha || borrador?.fecha
+        const dia = new Date(targetFecha + 'T12:00:00').getDay()
         if (dia !== 4 && dia !== 6 && dia !== 0) {
           setAlertaFecha('⚠️ Solo abrimos Jueves, Sábados y Domingos. Por favor elige uno de esos días.')
         } else setAlertaFecha('')
       } else setAlertaFecha('')
     }
   }, [open, prefillData, menuItems])
+
+  // 2. GUARDAR BORRADOR AUTOMÁTICAMENTE EN CADA CAMBIO DE ESTADO
+  useEffect(() => {
+    if (open && (nombre || fecha || hora || Object.keys(pedido).length > 0 || direccion)) {
+      const datosTemporal = {
+        nombre,
+        personas,
+        fecha,
+        hora,
+        tipoEntrega,
+        direccion,
+        zona,
+        referencia,
+        notasAdicionales,
+        pedido
+      }
+      localStorage.setItem('jardin_reserva_temporal', JSON.stringify(datosTemporal))
+    }
+  }, [open, nombre, personas, fecha, hora, tipoEntrega, direccion, zona, referencia, notasAdicionales, pedido])
 
   if (!open) return null
 
@@ -971,6 +1004,9 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 ¡Muchas gracias! Nos vemos pronto. 🌿`
     }
 
+    // Limpiar borrador guardado al enviar con éxito
+    localStorage.removeItem('jardin_reserva_temporal')
+    
     const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
     onClose()
@@ -1132,26 +1168,52 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
               <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#aaa' }}>
                 Pre-ordena tus platos para agilizar el servicio (opcional — puedes continuar sin elegir):
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {menuItems.filter(item => item.disponible !== false).map((item) => {
                   const cant = pedido[item.id] || 0
                   const img = item.imagen_base64 || item.url_imagen
                   return (
-                    <div key={item.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', ...cardStyle }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '8px', overflow: 'hidden', background: '#222', flexShrink: 0 }}>
+                    <div key={item.id} style={{ display: 'flex', gap: '14px', alignItems: 'center', ...cardStyle, padding: '12px' }}>
+                      {/* Miniatura imagen (Enchanced: de 56px a 90px para mejor atractivo visual) */}
+                      <div style={{ width: '90px', height: '90px', borderRadius: '10px', overflow: 'hidden', background: '#1a1a1a', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
                         {img
                           ? <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🍽️</div>
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>🍽️</div>
                         }
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={{ margin: '0 0 2px', fontSize: '13px', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nombre}</h4>
-                        <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(item.precio_actual).toFixed(0)}</span>
+
+                      {/* Info ampliada del plato */}
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.nombre}
+                        </h4>
+                        {item.descripcion && (
+                          <p style={{ margin: 0, fontSize: '11px', color: '#888', lineHeight: '1.3', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {item.descripcion}
+                          </p>
+                        )}
+                        <span style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold', marginTop: '2px' }}>
+                          Bs. {Number(item.precio_actual).toFixed(0)}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px 6px', borderRadius: '8px', flexShrink: 0 }}>
-                        <button onClick={() => setPedido(prev => { const n = { ...prev }; if (n[item.id] > 1) n[item.id]--; else delete n[item.id]; return n })} style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>−</button>
-                        <span style={{ minWidth: '20px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold', color: cant > 0 ? '#f59e0b' : '#555' }}>{cant}</span>
-                        <button onClick={() => setPedido(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))} style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>+</button>
+
+                      {/* Selector de cantidad */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', flexShrink: 0, border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <button 
+                          onClick={() => setPedido(prev => { const n = { ...prev }; if (n[item.id] > 1) n[item.id]--; else delete n[item.id]; return n })} 
+                          style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}
+                        >
+                          −
+                        </button>
+                        <span style={{ minWidth: '22px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: cant > 0 ? '#f59e0b' : '#666' }}>
+                          {cant}
+                        </span>
+                        <button 
+                          onClick={() => setPedido(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))} 
+                          style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   )
