@@ -837,6 +837,9 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const inputPagoRef = useRef(null)
 
+  // ── Estado de previsualización de imagen de plato ──
+  const [imagenPreview, setImagenPreview] = useState(null)
+
   // ── Cálculos del Pedido (Movido arriba para evitar ReferenceError) ──
   const itemsSeleccionados = Object.entries(pedido)
     .map(([id, cant]) => { const item = menuItems.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
@@ -1108,10 +1111,28 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 
     // Limpiar borrador guardado al enviar con éxito
     localStorage.removeItem('jardin_reserva_temporal')
-    
+
     const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
     onClose()
+  }
+
+  // ── Función para descargar el código QR del anticipo ──
+  const descargarQR = async () => {
+    try {
+      const res = await fetch(qrUrl)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Adelanto_El_Jardin_${nombre || 'Cliente'}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (e) {
+      window.open(qrUrl, '_blank')
+    }
   }
 
   // ── Estilos inline reutilizables ──
@@ -1349,10 +1370,35 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                     const img = item.imagen_base64 || item.url_imagen
                     return (
                       <div key={item.id} style={{ display: 'flex', gap: '14px', alignItems: 'center', ...cardStyle, padding: '12px' }}>
-                        {/* Miniatura imagen */}
-                        <div style={{ width: '90px', height: '90px', borderRadius: '10px', overflow: 'hidden', background: '#1a1a1a', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+                        {/* Miniatura imagen (Zoomable al hacer clic) */}
+                        <div 
+                          onClick={() => {
+                            if (img) {
+                              setImagenPreview({
+                                src: img,
+                                nombre: item.nombre,
+                                desc: item.descripcion,
+                                precio: item.precio_actual
+                              })
+                            }
+                          }}
+                          style={{ 
+                            width: '90px', 
+                            height: '90px', 
+                            borderRadius: '10px', 
+                            overflow: 'hidden', 
+                            background: '#1a1a1a', 
+                            flexShrink: 0, 
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                            cursor: img ? 'pointer' : 'default',
+                            position: 'relative'
+                          }}
+                        >
                           {img
-                            ? <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ? <>
+                                <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 4px', borderRadius: '4px', fontSize: '9px', color: '#fff' }}>🔍</div>
+                              </>
                             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>🍽️</div>
                           }
                         </div>
@@ -1455,6 +1501,27 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                     onError={(e) => { e.target.style.display = 'none' }}
                   />
                 </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={descargarQR}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '6px 14px',
+                      color: '#f59e0b',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    📥 Descargar Imagen QR
+                  </button>
+                </div>
                 <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#aaa', lineHeight: 1.4 }}>
                   Escanea el código QR o realiza la transferencia del 50% del total.
                 </p>
@@ -1518,6 +1585,62 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
           }
         </div>
       </div>
+
+      {/* ── LIGHTBOX ZOOM DE IMAGEN DEL PLATO ── */}
+      {imagenPreview && (
+        <div 
+          className="lightbox-backdrop" 
+          onClick={() => setImagenPreview(null)}
+          style={{ zIndex: 99999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{ 
+              background: '#111a0e', 
+              border: '1px solid rgba(74,124,63,0.3)', 
+              borderRadius: '20px', 
+              padding: '24px', 
+              maxWidth: '440px', 
+              width: '90%', 
+              textAlign: 'center',
+              boxShadow: '0 15px 40px rgba(0,0,0,0.6)',
+              position: 'relative'
+            }}
+          >
+            <button 
+              onClick={() => setImagenPreview(null)}
+              style={{
+                position: 'absolute', top: '12px', right: '12px', border: 'none', background: 'rgba(255,255,255,0.06)', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+            <div style={{ width: '100%', height: '250px', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px', background: '#000' }}>
+              <img 
+                src={imagenPreview.src} 
+                alt={imagenPreview.nombre} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontFamily: 'Playfair Display, serif', fontSize: '18px' }}>{imagenPreview.nombre}</h3>
+            {imagenPreview.desc && (
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#aaa', lineHeight: '1.4' }}>{imagenPreview.desc}</p>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#888' }}>Precio:</span>
+              <span style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(imagenPreview.precio).toFixed(0)}</span>
+            </div>
+            <button 
+              onClick={() => setImagenPreview(null)}
+              type="button"
+              className="btn btn-gold"
+              style={{ width: '100%', marginTop: '20px', height: 'auto', padding: '11px', border: 'none', cursor: 'pointer', borderRadius: '10px' }}
+            >
+              Cerrar Vista
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
