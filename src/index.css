@@ -1978,4 +1978,14 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     height: 60vh;
     max-height: 500px;
   }
-}
+
+  /* Modal de reserva interactiva a pantalla completa en móviles */
+  .interactive-booking-modal {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+}
+

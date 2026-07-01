@@ -1285,6 +1285,86 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
   )
 }
 
+// ─── Elementos de Menú por defecto (para asegurar carga rápida e instantánea) ──
+const FALLBACK_MENU_ITEMS = [
+  {
+    id: 'pampaku-id',
+    nombre: 'Jatun Pampaku',
+    precio_actual: 110,
+    categoria: 'principales',
+    disponible: true,
+    url_imagen: '/pampaku.jpg',
+    descripcion: 'Especialidad de la casa: carnes mixtas cocidas bajo tierra con piedras volcánicas.'
+  },
+  {
+    id: 'pique-id',
+    nombre: 'Pique Macho (Entero)',
+    precio_actual: 120,
+    categoria: 'principales',
+    disponible: true,
+    url_imagen: '/charque.jpg',
+    descripcion: 'Carne de res jugosa, salchichas, papas fritas, huevo, queso y locoto.'
+  },
+  {
+    id: 'charque-id',
+    nombre: 'Charque Criollo (Entero)',
+    precio_actual: 120,
+    categoria: 'principales',
+    disponible: true,
+    url_imagen: '/charque.jpg',
+    descripcion: 'Carne deshidratada desmenuzada y frita crujiente, con mote, huevo y queso.'
+  },
+  {
+    id: 'planchita-id',
+    nombre: 'Planchita (Entera)',
+    precio_actual: 120,
+    categoria: 'principales',
+    disponible: true,
+    url_imagen: '/pampaku.jpg',
+    descripcion: 'Carnes, chorizos y tubérculos calientes sobre plancha.'
+  },
+  {
+    id: 'uchu-id',
+    nombre: 'Fideos Uchu (Personal)',
+    precio_actual: 40,
+    categoria: 'entradas',
+    disponible: true,
+    descripcion: 'Delicioso ají de fideos tradicional cochabambino.'
+  },
+  {
+    id: 'coca-id',
+    nombre: 'Coca Cola 2L',
+    precio_actual: 15,
+    categoria: 'bebidas',
+    disponible: true,
+    descripcion: 'Gaseosa familiar.'
+  }
+]
+
+// Función para renderizar el texto del Chatbot formateando negritas (**texto**) y viñetas
+function renderizarMensaje(texto) {
+  if (!texto) return ''
+  
+  // Sanitizar caracteres HTML básicos
+  let html = texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+
+  // Convertir **bold** a <strong>bold</strong>
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  
+  // Convertir viñetas markdown (* o -) a viñetas HTML
+  html = html.replace(/^\s*[-*]\s+(.+)/gm, '• $1')
+
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }} 
+      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} 
+    />
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CHATBOT FLOTANTE — Inteligencia Artificial con Gemini
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1386,7 +1466,7 @@ function ChatbotFlotante({ onPreReserva, menuItems }) {
             {messages.map((m, i) => (
               <div key={i} className={`chatbot-bubble-wrapper ${m.role}`}>
                 <div className={`chatbot-bubble ${m.role}`}>
-                  {m.content}
+                  {renderizarMensaje(m.content)}
                 </div>
               </div>
             ))}
@@ -1476,7 +1556,7 @@ export default function App() {
   const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
   const [galeriaItems, setGaleriaItems] = useState(GALERIA_ITEMS)
   const [menu, setMenu] = useState(MENU_ITEMS)
-  const [menuItemsFlat, setMenuItemsFlat] = useState([])
+  const [menuItemsFlat, setMenuItemsFlat] = useState(FALLBACK_MENU_ITEMS)
   const [promosAPI, setPromosAPI] = useState([])
   const [loadingPromos, setLoadingPromos] = useState(true)
   const [reservaModalAbierto, setReservaModalAbierto] = useState(false)
