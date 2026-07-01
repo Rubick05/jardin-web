@@ -837,6 +837,12 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const inputPagoRef = useRef(null)
 
+  // ── Cálculos del Pedido (Movido arriba para evitar ReferenceError) ──
+  const itemsSeleccionados = Object.entries(pedido)
+    .map(([id, cant]) => { const item = menuItems.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
+    .filter(Boolean)
+  const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
+
   // Monto del adelanto (50% del total de la orden, o Bs. 50 flat si ordena en mesa)
   const deposito = totalEstimado > 0 ? (totalEstimado / 2) : 50
 
@@ -1020,11 +1026,6 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
       setAlertaFecha('⚠️ Solo abrimos Jueves, Sábados y Domingos. Por favor elige uno de esos días.')
     } else setAlertaFecha('')
   }
-
-  const itemsSeleccionados = Object.entries(pedido)
-    .map(([id, cant]) => { const item = menuItems.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
-    .filter(Boolean)
-  const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
 
   // Navegar al siguiente paso con validación
   const irSiguiente = () => {
