@@ -750,333 +750,536 @@ function WhatsAppFAB({ onOpenReserva }) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  MODAL INTERACTIVO DE RESERVA Y PEDIDO GUIADO CON IMÁGENES
+//  Pasos: Datos → Tipo de Servicio → [Dirección si delivery] → Menú → Resumen+QR
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Helper: comprimirImagen en jardin-web (canvas-based, inline)
+function comprimirImagenLocal(file, maxWidth = 900, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onerror = reject
+      reader.onload = e => resolve(e.target.result)
+      reader.readAsDataURL(file)
+      return
+    }
+    const reader = new FileReader()
+    reader.onerror = reject
+    reader.onload = e => {
+      const img = new Image()
+      img.onerror = reject
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return reject(new Error('Canvas no disponible'))
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height)
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+const ZONAS_COCHABAMBA = [
+  'Centro (Av. Heroínas / Plaza Principal)',
+  'Norte (Queru Queru / Las Cuadras)',
+  'Sur (Cala Cala / Colcapirhua)',
+  'Este (Sacaba / Av. Blanco Galindo)',
+  'Oeste (Quillacollo / Vinto)',
+  'Condebamba / Tupuraya',
+  'Av. América / Av. Potosí',
+  'Otro (indicar referencia)'
+]
+
 function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
+  // ── Tipo de pasos dinámico ──
+  const [tipoEntrega, setTipoEntrega] = useState('local') // 'local' | 'delivery'
+
+  const steps = tipoEntrega === 'delivery'
+    ? ['datos', 'tipo', 'ubicacion', 'menu', 'pago']
+    : ['datos', 'tipo', 'menu', 'pago']
+
+  const stepLabels = tipoEntrega === 'delivery'
+    ? ['Tus Datos', 'Tipo de Pedido', 'Dirección de Envío', 'Elige tu Menú', 'Resumen y Pago']
+    : ['Tus Datos', 'Tipo de Pedido', 'Elige tu Menú', 'Resumen y Pago']
+
   const [paso, setPaso] = useState(1)
-  const [nombre, setNombre] = useState("")
+  const currentStep = steps[paso - 1]
+  const totalPasos = steps.length
+
+  // ── Datos de la reserva ──
+  const [nombre, setNombre] = useState('')
   const [personas, setPersonas] = useState(2)
-  const [fecha, setFecha] = useState("")
-  const [hora, setHora] = useState("")
+  const [fecha, setFecha] = useState('')
+  const [hora, setHora] = useState('')
+  const [alertaFecha, setAlertaFecha] = useState('')
+
+  // ── Datos de delivery ──
+  const [direccion, setDireccion] = useState('')
+  const [zona, setZona] = useState('')
+  const [referencia, setReferencia] = useState('')
+  const [notasAdicionales, setNotasAdicionales] = useState('')
+
+  // ── Pedido ──
   const [pedido, setPedido] = useState({}) // { item_id: cantidad }
-  const [alertaFecha, setAlertaFecha] = useState("")
+
+  // ── Imagen de comprobante ──
+  const [imagenPago, setImagenPago] = useState(null)
+  const [procesandoImagen, setProcesandoImagen] = useState(false)
+  const inputPagoRef = useRef(null)
+
+  // Monto de seña (Bs. 20 por persona, mín Bs. 20, máx Bs. 100)
+  const deposito = Math.min(100, Math.max(20, personas * 20))
+
+  // Datos del QR de pago (Tigo Money / banco)
+  const qrTexto = `Seña Reserva El Jardín\nMonto: Bs. ${deposito}\nNombre: ${nombre || 'Cliente'}\nTigo Money: +591 69420202`
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&format=png&qzone=1&data=${encodeURIComponent(qrTexto)}`
 
   useEffect(() => {
     if (open) {
-      setNombre(prefillData?.nombre || "")
+      setNombre(prefillData?.nombre || '')
       setPersonas(prefillData?.personas || 2)
-      setFecha(prefillData?.fecha || "")
-      setHora(prefillData?.hora || "")
+      setFecha(prefillData?.fecha || '')
+      setHora(prefillData?.hora || '')
       setPaso(1)
+      setTipoEntrega('local')
+      setDireccion('')
+      setZona('')
+      setReferencia('')
+      setNotasAdicionales('')
+      setImagenPago(null)
 
       const nuevoPedido = {}
       if (prefillData?.platos && Array.isArray(prefillData.platos)) {
         prefillData.platos.forEach(p => {
-          const item = menuItems.find(mi => 
-            mi.nombre.toLowerCase().includes(p.nombre.toLowerCase()) || 
+          const item = menuItems.find(mi =>
+            mi.nombre.toLowerCase().includes(p.nombre.toLowerCase()) ||
             p.nombre.toLowerCase().includes(mi.nombre.toLowerCase())
           )
-          if (item) {
-            nuevoPedido[item.id] = p.cantidad
-          }
+          if (item) nuevoPedido[item.id] = p.cantidad
         })
       }
       setPedido(nuevoPedido)
 
       if (prefillData?.fecha) {
-        const diaSemana = new Date(prefillData.fecha + 'T12:00:00').getDay()
-        if (diaSemana !== 4 && diaSemana !== 6 && diaSemana !== 0) {
-          setAlertaFecha("⚠️ Nota: Solo abrimos Jueves, Sábados y Domingos. Por favor, selecciona uno de estos días para tu reserva.")
-        } else {
-          setAlertaFecha("")
-        }
-      } else {
-        setAlertaFecha("")
-      }
+        const dia = new Date(prefillData.fecha + 'T12:00:00').getDay()
+        if (dia !== 4 && dia !== 6 && dia !== 0) {
+          setAlertaFecha('⚠️ Solo abrimos Jueves, Sábados y Domingos. Por favor elige uno de esos días.')
+        } else setAlertaFecha('')
+      } else setAlertaFecha('')
     }
   }, [open, prefillData, menuItems])
 
   if (!open) return null
 
-  // Validar si la fecha cae en jueves (4), sábado (6) o domingo (0)
   const handleFechaChange = (e) => {
-    const seleccionada = e.target.value
-    setFecha(seleccionada)
-    if (!seleccionada) {
-      setAlertaFecha("")
-      return
-    }
-    const diaSemana = new Date(seleccionada + 'T12:00:00').getDay()
-    if (diaSemana !== 4 && diaSemana !== 6 && diaSemana !== 0) {
-      setAlertaFecha("⚠️ Nota: Solo abrimos Jueves, Sábados y Domingos. Por favor, selecciona uno de estos días para tu reserva.")
-    } else {
-      setAlertaFecha("")
-    }
+    const sel = e.target.value
+    setFecha(sel)
+    if (!sel) { setAlertaFecha(''); return }
+    const dia = new Date(sel + 'T12:00:00').getDay()
+    if (dia !== 4 && dia !== 6 && dia !== 0) {
+      setAlertaFecha('⚠️ Solo abrimos Jueves, Sábados y Domingos. Por favor elige uno de esos días.')
+    } else setAlertaFecha('')
   }
 
   const itemsSeleccionados = Object.entries(pedido)
-    .map(([id, cant]) => {
-      const item = menuItems.find(p => p.id === id)
-      return item ? { ...item, cantidad: cant } : null
-    })
+    .map(([id, cant]) => { const item = menuItems.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
     .filter(Boolean)
-
   const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
 
-  const enviarWhatsApp = () => {
-    if (!nombre.trim() || !fecha || !hora) {
-      alert("Por favor completa los detalles de la reserva (Nombre, Fecha y Hora).")
-      return
+  // Navegar al siguiente paso con validación
+  const irSiguiente = () => {
+    if (currentStep === 'datos') {
+      if (!nombre.trim() || !fecha || !hora) {
+        alert('Por favor completa Nombre, Fecha y Hora de llegada.')
+        return
+      }
+      if (alertaFecha) {
+        if (!window.confirm('La fecha seleccionada no es un día de atención. ¿Continuar de todas formas?')) return
+      }
     }
+    if (currentStep === 'ubicacion') {
+      if (!direccion.trim()) { alert('Por favor ingresa tu dirección de envío.'); return }
+      if (!zona) { alert('Por favor selecciona tu zona/barrio.'); return }
+    }
+    setPaso(p => p + 1)
+  }
 
+  const irAtras = () => {
+    if (paso > 1) setPaso(p => p - 1)
+  }
+
+  // Cuando cambia el tipo de entrega, resetear el paso al mínimo de 2 para no quedar en un step inexistente
+  const cambiarTipoEntrega = (tipo) => {
+    setTipoEntrega(tipo)
+    if (paso > 2) setPaso(2) // volver al step de tipo si ya avanzamos
+  }
+
+  const enviarWhatsApp = () => {
     const itemStrings = itemsSeleccionados.map(
       item => `- *${item.cantidad}x* ${item.nombre} (Bs. ${(item.precio_actual * item.cantidad).toFixed(0)})`
     )
+    const fechaText = new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })
 
-    const scheduleText = new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })
+    let mensaje
+    if (tipoEntrega === 'delivery') {
+      mensaje = `*🛵 PEDIDO A DOMICILIO — Restaurante El Jardín*
 
-    const mensaje = `*¡Hola El Jardín! Quisiera realizar una reserva/pedido:*
+*👤 Datos del Cliente:*
+- *Nombre:* ${nombre}
+- *Personas:* ${personas}
+- *Fecha:* ${fechaText}
+- *Hora estimada de entrega:* ${hora} hs
 
-*Detalles de la Reserva:*
+*📍 Dirección de Entrega:*
+- *Dirección:* ${direccion}
+- *Zona / Barrio:* ${zona}
+- *Referencia:* ${referencia || 'Sin referencia adicional'}
+${notasAdicionales ? `- *Notas:* ${notasAdicionales}` : ''}
+
+*🍽️ Pedido:*
+${itemStrings.length > 0 ? itemStrings.join('\n') : '_Sin platos pre-seleccionados_'}
+
+${totalEstimado > 0 ? `*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)} _(más costo de delivery según zona)_` : ''}
+
+*💳 Seña enviada:* Bs. ${deposito} vía Tigo Money al +591 69420202
+${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar el pedido'}
+
+¡Muchas gracias! Esperamos su confirmación.`
+    } else {
+      mensaje = `*🪴 RESERVA DE MESA — Restaurante El Jardín*
+
+*👤 Detalles de la Reserva:*
 - *Nombre:* ${nombre}
 - *Personas:* ${personas} personas
-- *Fecha:* ${scheduleText}
+- *Fecha:* ${fechaText}
 - *Hora de Llegada:* ${hora} hs
 
-${itemStrings.length > 0 ? `*Pedido Anticipado:*
+${itemStrings.length > 0 ? `*🍽️ Pedido Anticipado:*
 ${itemStrings.join('\n')}
 
-*Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
+*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
 
-¡Muchas gracias! Nos vemos pronto.`
+*💳 Seña enviada:* Bs. ${deposito} vía Tigo Money al +591 69420202
+${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar la reserva'}
+
+¡Muchas gracias! Nos vemos pronto. 🌿`
+    }
 
     const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
     onClose()
   }
 
+  // ── Estilos inline reutilizables ──
+  const inputStyle = { width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }
+  const labelStyle = { fontSize: '13px', fontWeight: '600', color: '#ccc', marginBottom: '6px', display: 'block' }
+  const sectionStyle = { display: 'flex', flexDirection: 'column', gap: '14px' }
+  const cardStyle = { background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }
+
   return (
     <div className="lightbox-backdrop" onClick={onClose}>
-      <div 
-        className="lightbox interactive-booking-modal" 
+      <div
+        className="lightbox interactive-booking-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '580px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ maxWidth: '600px', width: '96%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', borderRadius: '20px', overflow: 'hidden' }}
       >
         <button className="lightbox-close" onClick={onClose} aria-label="Cerrar">
           <X size={20} />
         </button>
 
-        {/* Modal Header */}
-        <div style={{ padding: '24px 24px 16px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <h3 className="lightbox-title" style={{ margin: 0, fontSize: '22px', fontFamily: 'Playfair Display, serif', color: '#f59e0b' }}>
-            Asistente de Reserva & Pedido
-          </h3>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#888' }}>
-            Paso {paso} de 3 · {paso === 1 ? 'Tus Datos' : paso === 2 ? 'Elige tu Menú (Opcional)' : 'Resumen'}
-          </p>
+        {/* ── HEADER ── */}
+        <div style={{ padding: '22px 24px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <span style={{ fontSize: '24px' }}>{tipoEntrega === 'delivery' ? '🛵' : '🪴'}</span>
+            <h3 style={{ margin: 0, fontSize: '20px', fontFamily: 'Playfair Display, serif', color: '#f59e0b' }}>
+              {tipoEntrega === 'delivery' ? 'Pedido a Domicilio' : 'Asistente de Reserva'}
+            </h3>
+          </div>
+
+          {/* Stepper visual */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            {stepLabels.map((label, i) => {
+              const stepNum = i + 1
+              const isActive = paso === stepNum
+              const isDone = paso > stepNum
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flex: '0 0 auto' }}>
+                    <div style={{
+                      width: '26px', height: '26px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '11px', fontWeight: 'bold', transition: 'all 0.25s',
+                      background: isDone ? '#22c55e' : isActive ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+                      color: isDone || isActive ? '#000' : '#555', border: isActive ? '2px solid #f59e0b' : '2px solid transparent'
+                    }}>
+                      {isDone ? '✓' : stepNum}
+                    </div>
+                    <span style={{ fontSize: '9px', color: isActive ? '#f59e0b' : isDone ? '#22c55e' : '#555', whiteSpace: 'nowrap', maxWidth: '60px', textAlign: 'center', lineHeight: '1.2' }}>
+                      {label}
+                    </span>
+                  </div>
+                  {i < stepLabels.length - 1 && (
+                    <div style={{ flex: 1, height: '2px', margin: '0 4px', marginBottom: '16px', background: paso > stepNum ? '#22c55e' : 'rgba(255,255,255,0.1)', transition: 'background 0.3s' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Modal Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          
-          {/* PASO 1: DATOS DE LA RESERVA */}
-          {paso === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Tu Nombre</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej: Alejandra Flores" 
-                  value={nombre}
-                  onChange={e => setNombre(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
-                />
-              </div>
+        {/* ── BODY ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Nº de Personas</label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="50"
-                    value={personas}
-                    onChange={e => setPersonas(parseInt(e.target.value) || 1)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
-                  />
+          {/* PASO: DATOS */}
+          {currentStep === 'datos' && (
+            <div style={sectionStyle}>
+              <div>
+                <label style={labelStyle}>Tu Nombre Completo</label>
+                <input type="text" placeholder="Ej: María González" value={nombre} onChange={e => setNombre(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Nº de Personas</label>
+                  <input type="number" min="1" max="50" value={personas} onChange={e => setPersonas(parseInt(e.target.value) || 1)} style={inputStyle} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Hora de Llegada</label>
-                  <input 
-                    type="time" 
-                    value={hora}
-                    onChange={e => setHora(e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
-                  />
+                <div>
+                  <label style={labelStyle}>Hora de Llegada</label>
+                  <input type="time" value={hora} onChange={e => setHora(e.target.value)} style={inputStyle} />
                 </div>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#ddd' }}>Fecha de Reserva</label>
-                <input 
-                  type="date" 
-                  value={fecha}
-                  onChange={handleFechaChange}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '14px', outline: 'none' }}
-                />
-                {alertaFecha && (
-                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '500', lineHeight: '1.4' }}>
-                    {alertaFecha}
-                  </p>
-                )}
+              <div>
+                <label style={labelStyle}>Fecha</label>
+                <input type="date" value={fecha} onChange={handleFechaChange} style={inputStyle} />
+                {alertaFecha && <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: 500, lineHeight: 1.4 }}>{alertaFecha}</p>}
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#666' }}>Atención: Jueves 11–23h · Sábado y Domingo 12–23h</p>
               </div>
             </div>
           )}
 
-          {/* PASO 2: ELEGIR PLATOS CON IMÁGENES */}
-          {paso === 2 && (
+          {/* PASO: TIPO DE ENTREGA */}
+          {currentStep === 'tipo' && (
+            <div style={sectionStyle}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#aaa' }}>¿Cómo prefieres tu pedido?</p>
+              {[
+                { id: 'local', emoji: '🪴', titulo: 'Mesa en el Restaurante', desc: 'Ven a disfrutar nuestra peña y la mejor comida cochabambina en un ambiente familiar.' },
+                { id: 'delivery', emoji: '🛵', titulo: 'Delivery a Domicilio', desc: 'Te llevamos los sabores de El Jardín a tu puerta. Indica tu dirección en el siguiente paso.' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => cambiarTipoEntrega(opt.id)}
+                  style={{
+                    background: tipoEntrega === opt.id ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: tipoEntrega === opt.id ? '2px solid #f59e0b' : '2px solid rgba(255,255,255,0.1)',
+                    borderRadius: '14px', padding: '16px 18px', cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.2s', width: '100%'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <span style={{ fontSize: '32px' }}>{opt.emoji}</span>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: tipoEntrega === opt.id ? '#f59e0b' : '#fff' }}>{opt.titulo}</p>
+                      <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#888', lineHeight: 1.4 }}>{opt.desc}</p>
+                    </div>
+                    {tipoEntrega === opt.id && <span style={{ marginLeft: 'auto', fontSize: '18px', color: '#f59e0b' }}>✓</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* PASO: UBICACIÓN (solo delivery) */}
+          {currentStep === 'ubicacion' && (
+            <div style={sectionStyle}>
+              <div style={{ ...cardStyle, borderColor: 'rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
+                <p style={{ margin: 0, fontSize: '12px', color: '#f59e0b' }}>🛵 El costo de delivery se acuerda según la zona. Te lo confirmamos por WhatsApp.</p>
+              </div>
+              <div>
+                <label style={labelStyle}>Dirección Completa <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="text" placeholder="Ej: Calle Sucre #456, entre Bolívar y Potosí" value={direccion} onChange={e => setDireccion(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Zona / Barrio <span style={{ color: '#ef4444' }}>*</span></label>
+                <select value={zona} onChange={e => setZona(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
+                  <option value="">-- Selecciona tu zona --</option>
+                  {ZONAS_COCHABAMBA.map(z => <option key={z} value={z}>{z}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Referencia del lugar</label>
+                <input type="text" placeholder="Ej: Edificio azul, portón negro, frente al parque..." value={referencia} onChange={e => setReferencia(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Notas adicionales (opcional)</label>
+                <textarea
+                  placeholder="Ej: Tocar el timbre 3 veces, dejar en portería..."
+                  value={notasAdicionales}
+                  onChange={e => setNotasAdicionales(e.target.value)}
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* PASO: MENÚ */}
+          {currentStep === 'menu' && (
             <div>
-              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#aaa' }}>
-                Selecciona los platos que desees pedir de forma anticipada (opcional, puedes avanzar sin elegir platos):
+              <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#aaa' }}>
+                Pre-ordena tus platos para agilizar el servicio (opcional — puedes continuar sin elegir):
               </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {menuItems.filter(item => item.disponible !== false).map((item) => {
                   const cant = pedido[item.id] || 0
                   const img = item.imagen_base64 || item.url_imagen
                   return (
-                    <div 
-                      key={item.id} 
-                      style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}
-                    >
-                      {/* Miniatura imagen */}
-                      <div style={{ width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', background: '#222', flexShrink: 0 }}>
-                        {img ? (
-                          <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#555' }}>🍽️</div>
-                        )}
+                    <div key={item.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', ...cardStyle }}>
+                      <div style={{ width: '56px', height: '56px', borderRadius: '8px', overflow: 'hidden', background: '#222', flexShrink: 0 }}>
+                        {img
+                          ? <img src={img} alt={item.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🍽️</div>
+                        }
                       </div>
-
-                      {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={{ margin: '0 0 2px 0', fontSize: '13px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.nombre}</h4>
+                        <h4 style={{ margin: '0 0 2px', fontSize: '13px', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nombre}</h4>
                         <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(item.precio_actual).toFixed(0)}</span>
                       </div>
-
-                      {/* Cantidad Selector */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '3px', borderRadius: '6px' }}>
-                        <button 
-                          onClick={() => {
-                            setPedido(prev => {
-                              const next = { ...prev }
-                              if (next[item.id] > 1) next[item.id]--
-                              else delete next[item.id]
-                              return next
-                            })
-                          }}
-                          style={{ width: '26px', height: '26px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          -
-                        </button>
-                        <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>{cant}</span>
-                        <button 
-                          onClick={() => {
-                            setPedido(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))
-                          }}
-                          style={{ width: '26px', height: '26px', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          +
-                        </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px 6px', borderRadius: '8px', flexShrink: 0 }}>
+                        <button onClick={() => setPedido(prev => { const n = { ...prev }; if (n[item.id] > 1) n[item.id]--; else delete n[item.id]; return n })} style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>−</button>
+                        <span style={{ minWidth: '20px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold', color: cant > 0 ? '#f59e0b' : '#555' }}>{cant}</span>
+                        <button onClick={() => setPedido(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))} style={{ width: '28px', height: '28px', border: 'none', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>+</button>
                       </div>
                     </div>
                   )
                 })}
+                {menuItems.filter(i => i.disponible !== false).length === 0 && (
+                  <p style={{ textAlign: 'center', color: '#666', fontSize: '13px', padding: '20px' }}>No hay platos disponibles cargados.</p>
+                )}
               </div>
+              {totalEstimado > 0 && (
+                <div style={{ marginTop: '14px', padding: '12px 16px', background: 'rgba(245,158,11,0.1)', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#f59e0b' }}>Subtotal seleccionado: Bs. {totalEstimado.toFixed(0)}</span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* PASO 3: RESUMEN Y ENVIAR */}
-          {paso === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#f59e0b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', fontWeight: 'bold' }}>Detalles de la Reserva</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px 16px', fontSize: '13px' }}>
-                  <span style={{ color: '#888' }}>Nombre:</span>
-                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{nombre || 'No indicado'}</span>
-                  <span style={{ color: '#888' }}>Personas:</span>
-                  <span style={{ color: '#fff' }}>{personas}</span>
+          {/* PASO: PAGO Y RESUMEN */}
+          {currentStep === 'pago' && (
+            <div style={sectionStyle}>
+              {/* Resumen compacto */}
+              <div style={cardStyle}>
+                <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
+                  {tipoEntrega === 'delivery' ? '🛵 Resumen del Pedido' : '🪴 Resumen de la Reserva'}
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '13px' }}>
+                  <span style={{ color: '#888' }}>Nombre:</span><span style={{ color: '#fff', fontWeight: 'bold' }}>{nombre || '—'}</span>
+                  <span style={{ color: '#888' }}>Personas:</span><span style={{ color: '#fff' }}>{personas}</span>
                   <span style={{ color: '#888' }}>Fecha:</span>
-                  <span style={{ color: '#fff' }}>{fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : 'No seleccionada'}</span>
-                  <span style={{ color: '#888' }}>Hora:</span>
-                  <span style={{ color: '#fff' }}>{hora || 'No seleccionada'} hs</span>
+                  <span style={{ color: '#fff' }}>{fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : '—'}</span>
+                  <span style={{ color: '#888' }}>Hora:</span><span style={{ color: '#fff' }}>{hora || '—'} hs</span>
+                  {tipoEntrega === 'delivery' && <>
+                    <span style={{ color: '#888' }}>Dirección:</span><span style={{ color: '#fff', wordBreak: 'break-word' }}>{direccion}</span>
+                    <span style={{ color: '#888' }}>Zona:</span><span style={{ color: '#fff' }}>{zona}</span>
+                  </>}
                 </div>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#f59e0b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', fontWeight: 'bold' }}>Pedido Anticipado</h4>
-                {itemsSeleccionados.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#777', fontStyle: 'italic' }}>Sin platos seleccionados (se ordenará en mesa).</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {itemsSeleccionados.length > 0 && (
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     {itemsSeleccionados.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justify: 'space-between', fontSize: '13px' }}>
-                        <span><span style={{ fontWeight: 'bold', color: '#f59e0b' }}>{item.cantidad}x</span> {item.nombre}</span>
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                        <span><span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{item.cantidad}×</span> {item.nombre}</span>
                         <span style={{ fontWeight: 'bold' }}>Bs. {(item.precio_actual * item.cantidad).toFixed(0)}</span>
                       </div>
                     ))}
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '4px', display: 'flex', justify: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
-                      <span>Total Estimado:</span>
-                      <span style={{ color: '#f59e0b' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 'bold', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '4px' }}>
+                      <span>Total Estimado:</span><span style={{ color: '#f59e0b' }}>Bs. {totalEstimado.toFixed(0)}</span>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* QR de pago */}
+              <div style={{ ...cardStyle, borderColor: 'rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.05)', textAlign: 'center' }}>
+                <h4 style={{ margin: '0 0 4px', fontSize: '13px', color: '#22c55e', fontWeight: 'bold' }}>💳 Seña de Reserva (Opcional pero recomendada)</h4>
+                <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#888', lineHeight: 1.4 }}>
+                  Envía una seña de <strong style={{ color: '#f59e0b' }}>Bs. {deposito}</strong> vía Tigo Money para confirmar tu reserva con prioridad.
+                </p>
+                <div style={{ display: 'inline-block', background: '#fff', padding: '10px', borderRadius: '12px', marginBottom: '10px' }}>
+                  <img
+                    src={qrUrl}
+                    alt="QR Pago Tigo Money El Jardín"
+                    width={180} height={180}
+                    style={{ display: 'block', borderRadius: '6px' }}
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                </div>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#aaa' }}>
+                  📱 <strong>Tigo Money:</strong> <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>+591 69420202</span><br />
+                  Concepto: <em>Seña Reserva {nombre || 'El Jardín'}</em>
+                </p>
+
+                {/* Subir comprobante */}
+                <input
+                  ref={inputPagoRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setProcesandoImagen(true)
+                    try {
+                      const b64 = await comprimirImagenLocal(file, 800, 0.8)
+                      setImagenPago(b64)
+                    } catch { alert('Error al cargar la imagen') }
+                    finally { setProcesandoImagen(false); e.target.value = '' }
+                  }}
+                />
+                {imagenPago ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <img src={imagenPago} alt="Comprobante" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #22c55e' }} />
+                    <p style={{ margin: 0, fontSize: '11px', color: '#22c55e', fontWeight: 'bold' }}>✅ Comprobante cargado</p>
+                    <button onClick={() => setImagenPago(null)} style={{ border: 'none', background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>Eliminar</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => inputPagoRef.current?.click()}
+                    disabled={procesandoImagen}
+                    style={{ border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.1)', color: '#22c55e', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    {procesandoImagen ? '⏳ Cargando...' : '📷 Adjuntar Comprobante de Pago'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
-
         </div>
 
-        {/* Modal Footer */}
-        <div style={{ padding: '16px 24px 24px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
-          {paso > 1 ? (
-            <button 
-              className="btn btn-outline" 
-              onClick={() => setPaso(p => p - 1)}
-              style={{ padding: '8px 16px', fontSize: '13px', height: 'auto' }}
-            >
-              Atrás
-            </button>
-          ) : (
-            <div />
-          )}
+        {/* ── FOOTER ── */}
+        <div style={{ padding: '14px 24px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}>
+          {paso > 1
+            ? <button className="btn btn-outline" onClick={irAtras} style={{ padding: '9px 18px', fontSize: '13px', height: 'auto' }}>← Atrás</button>
+            : <div />
+          }
 
-          {paso < 3 ? (
-            <button 
-              className="btn btn-gold" 
-              onClick={() => {
-                if (paso === 1 && (!nombre.trim() || !fecha || !hora)) {
-                  alert("Por favor completa Nombre, Fecha y Hora de llegada.")
-                  return
-                }
-                setPaso(p => p + 1)
-              }}
-              style={{ padding: '8px 20px', fontSize: '13px', height: 'auto' }}
-            >
-              Siguiente
-            </button>
-          ) : (
-            <button 
-              className="btn btn-gold" 
-              onClick={enviarWhatsApp}
-              style={{ padding: '10px 24px', fontSize: '13px', background: '#25D366', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', height: 'auto' }}
-            >
-              <MessageCircle size={18} />
-              Enviar Reserva
-            </button>
-          )}
+          {currentStep !== 'pago'
+            ? <button className="btn btn-gold" onClick={irSiguiente} style={{ padding: '10px 22px', fontSize: '13px', height: 'auto' }}>
+                Siguiente →
+              </button>
+            : <button
+                className="btn btn-gold"
+                onClick={enviarWhatsApp}
+                style={{ padding: '11px 22px', fontSize: '13px', background: '#25D366', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', height: 'auto', borderRadius: '10px', fontWeight: 'bold' }}
+              >
+                <MessageCircle size={18} />
+                Enviar por WhatsApp
+              </button>
+          }
         </div>
-
       </div>
     </div>
   )
