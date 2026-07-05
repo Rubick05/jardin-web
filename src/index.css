@@ -2162,4 +2162,375 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     bottom: 160px !important;
   }
 }
+
+/* Pre-flight reset para evitar zoom y desbordamiento horizontal en celulares */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+/* ── APP DE PEDIDOS Y RESERVAS ESTILO PEDIDOSYA ── */
+.pedidos-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.pedidos-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-mid);
+  border-bottom: 1.5px solid var(--border-light);
+  padding: 14px 20px;
+}
+
+.pedidos-header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pedidos-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--gold-light);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pedidos-back-btn:hover {
+  background: var(--gold);
+  color: #000;
+}
+
+.pedidos-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pedidos-brand img {
+  width: 32px;
+  height: 32px;
+}
+
+.pedidos-brand h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--gold);
+  margin: 0;
+}
+
+.pedidos-type-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pedidos-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pedidos-toggle-btn.active {
+  background: var(--gold);
+  color: #000;
+}
+
+.pedidos-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.pedidos-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pedidos-search-bar {
+  position: relative;
+  width: 100%;
+}
+
+.pedidos-search-input {
+  width: 100%;
+  padding: 14px 18px 14px 44px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.25s ease;
+}
+
+.pedidos-search-input:focus {
+  border-color: var(--gold);
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 3px rgba(200, 144, 58, 0.15);
+}
+
+.pedidos-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.pedidos-categories-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pedidos-categories-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pedidos-categories-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.pedidos-category-pill {
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pedidos-category-pill.active {
+  background: rgba(200, 144, 58, 0.12);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.pedidos-dishes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.pedidos-dish-card {
+  background: var(--bg-mid);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s ease;
+}
+
+.pedidos-dish-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(200, 144, 58, 0.25);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.pedidos-dish-img-container {
+  height: 180px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: rgba(0,0,0,0.2);
+}
+
+.pedidos-dish-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+
+.pedidos-dish-card:hover .pedidos-dish-img-container img {
+  transform: scale(1.04);
+}
+
+.pedidos-dish-info {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pedidos-dish-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pedidos-dish-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.pedidos-dish-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pedidos-dish-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 12px;
+}
+
+.pedidos-dish-price {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--gold-light);
+}
+
+.pedidos-checkout-sidebar {
+  position: sticky;
+  top: 90px;
+  height: calc(100vh - 120px);
+  background: var(--bg-mid);
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pedidos-sidebar-header {
+  padding: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0,0,0,0.15);
+}
+
+.pedidos-sidebar-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pedidos-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: thin;
+}
+
+.pedidos-sidebar-footer {
+  padding: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0,0,0,0.15);
+}
+
+.pedidos-mobile-cart-strip {
+  display: none;
+}
+
+/* Adaptación móvil de la vista de pedidos */
+@media (max-width: 900px) {
+  .pedidos-container {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+    padding-bottom: 90px;
+  }
+
+  .pedidos-checkout-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 250;
+    border-radius: 0;
+    border: none;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .pedidos-checkout-sidebar.open-mobile {
+    transform: translateY(0);
+  }
+
+  .pedidos-mobile-cart-strip {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bg-mid);
+    border-top: 1.5px solid var(--border-light);
+    padding: 14px 20px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 180;
+    box-sizing: border-box;
+  }
+}
 
