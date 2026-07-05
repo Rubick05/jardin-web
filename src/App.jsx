@@ -356,9 +356,22 @@ function GaleriaMosaico({ items }) {
 //  NUESTRA CARTA — Menú Bento con pestañas interactivas
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function NuestraCarta({ menu }) {
+function NuestraCarta({ menu, pedido, setPedido }) {
   const [categoriaActiva, setCategoriaActiva] = useState('principales')
   const platos = menu[categoriaActiva] || []
+
+  const incrementar = (id) => {
+    setPedido(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+  }
+
+  const decrementar = (id) => {
+    setPedido(prev => {
+      const n = { ...prev }
+      if (n[id] > 1) n[id]--
+      else delete n[id]
+      return n
+    })
+  }
 
   return (
     <section className="section section-dark" id="menu">
@@ -396,6 +409,8 @@ function NuestraCarta({ menu }) {
               const formattedPrice = typeof item.precio_actual === 'number'
                 ? `Bs. ${item.precio_actual}`
                 : item.precio || 'Consultar'
+              const cant = pedido[item.id] || 0
+
               return (
                 <div className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} key={index}>
                   {imageSrc && (
@@ -407,16 +422,50 @@ function NuestraCarta({ menu }) {
                     <div>
                       <div className="menu-item-header">
                         <h3 className="menu-item-name">{item.nombre}</h3>
-                        <span className="menu-item-price">{formattedPrice}</span>
                       </div>
                       <p className="menu-item-desc">{item.descripcion || 'Sin descripción'}</p>
                     </div>
                     {item.ingredientes && (
-                      <div className="menu-item-ingredients">
+                      <div className="menu-item-ingredients" style={{ marginBottom: '10px' }}>
                         <span className="menu-item-ingredients-label">Ingredientes:</span>
                         <p className="menu-item-ingredients-text">{item.ingredientes}</p>
                       </div>
                     )}
+                    
+                    {/* Selector de cantidad interactivo en la carta */}
+                    <div className="menu-item-action" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(74,124,63,0.12)', paddingTop: '12px' }}>
+                      <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem', fontFamily: 'monospace' }}>{formattedPrice}</span>
+                      
+                      {cant > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); decrementar(item.id) }}
+                            className="qty-btn"
+                          >
+                            −
+                          </button>
+                          <span style={{ minWidth: '20px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: 'var(--gold)' }}>
+                            {cant}
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); incrementar(item.id) }}
+                            className="qty-btn"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); incrementar(item.id) }}
+                          className="btn btn-gold add-to-cart-btn"
+                        >
+                          + Agregar
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -732,11 +781,11 @@ function Footer({ onOpenReserva }) {
 //  WHATSAPP FAB — Botón flotante con bounce + pulse
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function WhatsAppFAB({ onOpenReserva }) {
+function WhatsAppFAB({ onOpenReserva, className }) {
   return (
     <button
       onClick={onOpenReserva}
-      className="whatsapp-fab"
+      className={`whatsapp-fab ${className || ''}`}
       style={{ border: 'none', cursor: 'pointer' }}
       aria-label="Pedir por WhatsApp"
     >
@@ -796,62 +845,57 @@ const ZONAS_COCHABAMBA = [
   'Otro (indicar referencia)'
 ]
 
-function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
-  // ── Tipo de pasos dinámico ──
-  const [tipoEntrega, setTipoEntrega] = useState('local') // 'local' | 'delivery'
-
-  const steps = tipoEntrega === 'delivery'
-    ? ['datos', 'tipo', 'ubicacion', 'menu', 'pago']
-    : ['datos', 'tipo', 'menu', 'pago']
-
-  const stepLabels = tipoEntrega === 'delivery'
-    ? ['Tus Datos', 'Tipo de Pedido', 'Dirección de Envío', 'Elige tu Menú', 'Resumen y Pago']
-    : ['Tus Datos', 'Tipo de Pedido', 'Elige tu Menú', 'Resumen y Pago']
-
-  const [paso, setPaso] = useState(1)
-  const currentStep = steps[paso - 1]
+function ModalReservaInteractiva({
+  open,
+  onClose,
+  menuItems,
+  prefillData,
+  qrPagoRestaurante,
+  tipoEntrega,
+  setTipoEntrega,
+  paso,
+  setPaso,
+  nombre,
+  setNombre,
+  personas,
+  setPersonas,
+  fecha,
+  setFecha,
+  hora,
+  setHora,
+  direccion,
+  setDireccion,
+  zona,
+  setZona,
+  referencia,
+  setReferencia,
+  notasAdicionales,
+  setNotasAdicionales,
+  pedido,
+  setPedido,
+  coords,
+  setCoords,
+  imagenPago,
+  setImagenPago,
+  totalEstimado,
+  deposito,
+  qrUrl,
+  steps,
+  stepLabels,
+  currentStep,
+  resetFormulario
+}) {
   const totalPasos = steps.length
-
-  // ── Datos de la reserva ──
-  const [nombre, setNombre] = useState('')
-  const [personas, setPersonas] = useState(2)
-  const [fecha, setFecha] = useState('')
-  const [hora, setHora] = useState('')
   const [alertaFecha, setAlertaFecha] = useState('')
-
-  // ── Datos de delivery ──
-  const [direccion, setDireccion] = useState('')
-  const [zona, setZona] = useState('')
-  const [referencia, setReferencia] = useState('')
-  const [notasAdicionales, setNotasAdicionales] = useState('')
-
-  // ── Pedido y Filtro de Categoría ──
-  const [pedido, setPedido] = useState({}) // { item_id: cantidad }
   const [categoriaFiltro, setCategoriaFiltro] = useState('Todos')
-
-  // ── Coordenadas del Mapa Interactivo ──
-  const [coords, setCoords] = useState({ lat: -17.3895, lng: -66.1568 }) // Cochabamba
-
-  // ── Imagen de comprobante ──
-  const [imagenPago, setImagenPago] = useState(null)
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const inputPagoRef = useRef(null)
-
-  // ── Estado de previsualización de imagen de plato ──
   const [imagenPreview, setImagenPreview] = useState(null)
 
-  // ── Cálculos del Pedido (Movido arriba para evitar ReferenceError) ──
+  // ── Items seleccionados locales ──
   const itemsSeleccionados = Object.entries(pedido)
     .map(([id, cant]) => { const item = menuItems.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
     .filter(Boolean)
-  const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
-
-  // Monto del adelanto (50% del total de la orden, o Bs. 50 flat si ordena en mesa)
-  const deposito = totalEstimado > 0 ? (totalEstimado / 2) : 50
-
-  // Datos del QR de pago (General para depósito bancario / QR)
-  const qrTexto = `Adelanto 50% El Jardin\nMonto: Bs. ${deposito.toFixed(0)}\nCliente: ${nombre || 'Cliente'}`
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&format=png&qzone=1&data=${encodeURIComponent(qrTexto)}`
 
   // ── Cargar Leaflet y Configurar Mapa en paso 'ubicacion' ──
   useEffect(() => {
@@ -1077,6 +1121,7 @@ function ModalReservaInteractiva({ open, onClose, menuItems, prefillData }) {
 *📍 Dirección de Entrega:*
 - *Dirección:* ${direccion}
 - *Zona / Barrio:* ${zona}
+- *Ubicación GPS (Google Maps):* https://www.google.com/maps?q=${coords.lat},${coords.lng}
 - *Referencia:* ${referencia || 'Sin referencia adicional'}
 ${notasAdicionales ? `- *Notas:* ${notasAdicionales}` : ''}
 
@@ -1085,7 +1130,7 @@ ${itemStrings.length > 0 ? itemStrings.join('\n') : '_Sin platos pre-seleccionad
 
 ${totalEstimado > 0 ? `*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)} _(más costo de delivery según zona)_` : ''}
 
-*💳 Seña enviada:* Bs. ${deposito} vía Tigo Money al +591 69420202
+*💳 Pago Completo enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 69420202
 ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar el pedido'}
 
 ¡Muchas gracias! Esperamos su confirmación.`
@@ -1103,14 +1148,14 @@ ${itemStrings.join('\n')}
 
 *💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
 
-*💳 Seña enviada:* Bs. ${deposito} vía Tigo Money al +591 69420202
+*💳 Pago Anticipado enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 69420202
 ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar la reserva'}
 
 ¡Muchas gracias! Nos vemos pronto. 🌿`
     }
 
-    // Limpiar borrador guardado al enviar con éxito
-    localStorage.removeItem('jardin_reserva_temporal')
+    // Limpiar borrador y reiniciar formulario al enviar con éxito
+    resetFormulario()
 
     const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
@@ -1119,6 +1164,16 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 
   // ── Función para descargar el código QR del anticipo ──
   const descargarQR = async () => {
+    if (qrPagoRestaurante) {
+      // Si es el QR de configuración cargado desde base de datos, descargarlo directamente
+      const a = document.createElement('a')
+      a.href = qrPagoRestaurante
+      a.download = `Adelanto_El_Jardin_${nombre || 'Cliente'}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      return
+    }
     try {
       const res = await fetch(qrUrl)
       const blob = await res.blob()
@@ -1198,22 +1253,22 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
           {currentStep === 'datos' && (
             <div style={sectionStyle}>
               <div>
-                <label style={labelStyle}>Tu Nombre Completo</label>
-                <input type="text" placeholder="Ej: María González" value={nombre} onChange={e => setNombre(e.target.value)} style={inputStyle} />
+                <label className="booking-label">Tu Nombre Completo</label>
+                <input type="text" placeholder="Ej: María González" value={nombre} onChange={e => setNombre(e.target.value)} className="booking-input" />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={labelStyle}>Nº de Personas</label>
-                  <input type="number" min="1" max="50" value={personas} onChange={e => setPersonas(parseInt(e.target.value) || 1)} style={inputStyle} />
+                  <label className="booking-label">Nº de Personas</label>
+                  <input type="number" min="1" max="50" value={personas} onChange={e => setPersonas(parseInt(e.target.value) || 1)} className="booking-input" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Hora de Llegada</label>
-                  <input type="time" value={hora} onChange={e => setHora(e.target.value)} style={inputStyle} />
+                  <label className="booking-label">Hora de Llegada</label>
+                  <input type="time" value={hora} onChange={e => setHora(e.target.value)} className="booking-input" />
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Fecha</label>
-                <input type="date" value={fecha} onChange={handleFechaChange} style={inputStyle} />
+                <label className="booking-label">Fecha</label>
+                <input type="date" value={fecha} onChange={handleFechaChange} className="booking-input" />
                 {alertaFecha && <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: 500, lineHeight: 1.4 }}>{alertaFecha}</p>}
                 <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#666' }}>Atención: Jueves 11–23h · Sábado y Domingo 12–23h</p>
               </div>
@@ -1260,7 +1315,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 
               {/* Mapa Interactivo */}
               <div>
-                <label style={labelStyle}>Ubicación en el mapa <span style={{ color: '#ef4444' }}>*</span></label>
+                <label className="booking-label">Ubicación en el mapa <span style={{ color: '#ef4444' }}>*</span></label>
                 <div 
                   id="map-selection" 
                   style={{ 
@@ -1281,28 +1336,29 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
               </div>
 
               <div>
-                <label style={labelStyle}>Dirección Completa <span style={{ color: '#ef4444' }}>*</span></label>
-                <input type="text" placeholder="Ej: Calle Sucre #456, entre Bolívar y Potosí" value={direccion} onChange={e => setDireccion(e.target.value)} style={inputStyle} />
+                <label className="booking-label">Dirección Completa <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="text" placeholder="Ej: Calle Sucre #456, entre Bolívar y Potosí" value={direccion} onChange={e => setDireccion(e.target.value)} className="booking-input" />
               </div>
               <div>
-                <label style={labelStyle}>Zona / Barrio <span style={{ color: '#ef4444' }}>*</span></label>
-                <select value={zona} onChange={e => setZona(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
+                <label className="booking-label">Zona / Barrio <span style={{ color: '#ef4444' }}>*</span></label>
+                <select value={zona} onChange={e => setZona(e.target.value)} className="booking-input" style={{ appearance: 'auto' }}>
                   <option value="">-- Selecciona tu zona --</option>
                   {ZONAS_COCHABAMBA.map(z => <option key={z} value={z}>{z}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Referencia del lugar</label>
-                <input type="text" placeholder="Ej: Edificio azul, portón negro, frente al parque..." value={referencia} onChange={e => setReferencia(e.target.value)} style={inputStyle} />
+                <label className="booking-label">Referencia del lugar</label>
+                <input type="text" placeholder="Ej: Edificio azul, portón negro, frente al parque..." value={referencia} onChange={e => setReferencia(e.target.value)} className="booking-input" />
               </div>
               <div>
-                <label style={labelStyle}>Notas adicionales (opcional)</label>
+                <label className="booking-label">Notas adicionales (opcional)</label>
                 <textarea
                   placeholder="Ej: Tocar el timbre 3 veces, dejar en portería..."
                   value={notasAdicionales}
                   onChange={e => setNotasAdicionales(e.target.value)}
                   rows={2}
-                  style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
+                  className="booking-input"
+                  style={{ resize: 'none', fontFamily: 'inherit' }}
                 />
               </div>
             </div>
@@ -1488,14 +1544,19 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 
               {/* QR de pago */}
               <div style={{ ...cardStyle, borderColor: 'rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.05)', textAlign: 'center' }}>
-                <h4 style={{ margin: '0 0 4px', fontSize: '13px', color: '#22c55e', fontWeight: 'bold' }}>💳 Adelanto del 50% requerido</h4>
+                <h4 style={{ margin: '0 0 4px', fontSize: '14px', color: '#22c55e', fontWeight: 'bold' }}>
+                  {tipoEntrega === 'delivery' ? '💳 Pago completo en su totalidad requerido' : '💳 Pago anticipado para reserva en mesa'}
+                </h4>
                 <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#888', lineHeight: 1.4 }}>
-                  Realiza un depósito del 50% de adelanto (mitad del total: <strong style={{ color: '#f59e0b' }}>Bs. {deposito.toFixed(0)}</strong>) para confirmar tu pedido y proceder con la preparación.
+                  {tipoEntrega === 'delivery'
+                    ? <>Realiza el pago completo por el total de tu pedido (<strong style={{ color: '#f59e0b' }}>Bs. {deposito.toFixed(0)}</strong>) para confirmar tu orden y proceder con la preparación y envío.</>
+                    : <>Realiza el pago anticipado para tu reserva de mesa (<strong style={{ color: '#f59e0b' }}>Bs. {deposito.toFixed(0)}</strong>) para confirmar tu reserva.</>
+                  }
                 </p>
                 <div style={{ display: 'inline-block', background: '#fff', padding: '10px', borderRadius: '12px', marginBottom: '10px' }}>
                   <img
-                    src={qrUrl}
-                    alt="QR Adelanto de Reserva El Jardín"
+                    src={qrPagoRestaurante || qrUrl}
+                    alt={tipoEntrega === 'delivery' ? "QR Pago Completo El Jardín" : "QR Pago Anticipado El Jardín"}
                     width={180} height={180}
                     style={{ display: 'block', borderRadius: '6px' }}
                     onError={(e) => { e.target.style.display = 'none' }}
@@ -1523,7 +1584,10 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                   </button>
                 </div>
                 <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#aaa', lineHeight: 1.4 }}>
-                  Escanea el código QR o realiza la transferencia del 50% del total.
+                  {tipoEntrega === 'delivery'
+                    ? 'Escanea el código QR o realiza la transferencia del total de tu pedido.'
+                    : 'Escanea el código QR o realiza la transferencia del pago anticipado.'
+                  }
                 </p>
 
                 {/* Subir comprobante */}
@@ -1602,6 +1666,8 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
               padding: '24px', 
               maxWidth: '440px', 
               width: '90%', 
+              maxHeight: '90vh',
+              overflowY: 'auto',
               textAlign: 'center',
               boxShadow: '0 15px 40px rgba(0,0,0,0.6)',
               position: 'relative'
@@ -1921,6 +1987,96 @@ export default function App() {
   const [loadingPromos, setLoadingPromos] = useState(true)
   const [reservaModalAbierto, setReservaModalAbierto] = useState(false)
   const [prefillReserva, setPrefillReserva] = useState(null)
+  const [qrPago, setQrPago] = useState(null)
+
+  // ── Estados de la Reserva y Pedido Levantados al Componente Principal ──
+  const [tipoEntrega, setTipoEntrega] = useState('local')
+  const [paso, setPaso] = useState(1)
+  const [nombre, setNombre] = useState('')
+  const [personas, setPersonas] = useState(2)
+  const [fecha, setFecha] = useState('')
+  const [hora, setHora] = useState('')
+  const [direccion, setDireccion] = useState('')
+  const [zona, setZona] = useState('')
+  const [referencia, setReferencia] = useState('')
+  const [notasAdicionales, setNotasAdicionales] = useState('')
+  const [pedido, setPedido] = useState({})
+  const [coords, setCoords] = useState({ lat: -17.3895, lng: -66.1568 })
+  const [imagenPago, setImagenPago] = useState(null)
+
+  const steps = tipoEntrega === 'delivery'
+    ? ['datos', 'tipo', 'ubicacion', 'menu', 'pago']
+    : ['datos', 'tipo', 'menu', 'pago']
+
+  const stepLabels = tipoEntrega === 'delivery'
+    ? ['Tus Datos', 'Tipo de Pedido', 'Dirección de Envío', 'Elige tu Menú', 'Resumen y Pago']
+    : ['Tus Datos', 'Tipo de Pedido', 'Elige tu Menú', 'Resumen y Pago']
+
+  const currentStep = steps[paso - 1]
+
+  const itemsSeleccionados = Object.entries(pedido)
+    .map(([id, cant]) => { const item = menuItemsFlat.find(p => p.id === id); return item ? { ...item, cantidad: cant } : null })
+    .filter(Boolean)
+  const totalEstimado = itemsSeleccionados.reduce((acc, curr) => acc + (curr.precio_actual * curr.cantidad), 0)
+
+  // Pago completo para delivery (100%), Pago Anticipado para mesa (50%, mínimo Bs 50 si es sin menú)
+  const deposito = tipoEntrega === 'delivery'
+    ? totalEstimado
+    : (totalEstimado > 0 ? (totalEstimado / 2) : 50)
+
+  const qrTexto = tipoEntrega === 'delivery'
+    ? `Pago Total El Jardin\nMonto: Bs. ${deposito.toFixed(0)}\nCliente: ${nombre || 'Cliente'}`
+    : `Pago Anticipado El Jardin\nMonto: Bs. ${deposito.toFixed(0)}\nCliente: ${nombre || 'Cliente'}`
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&format=png&qzone=1&data=${encodeURIComponent(qrTexto)}`
+
+  const resetFormulario = () => {
+    localStorage.removeItem('jardin_reserva_temporal')
+    setNombre('')
+    setPersonas(2)
+    setFecha('')
+    setHora('')
+    setTipoEntrega('local')
+    setDireccion('')
+    setZona('')
+    setReferencia('')
+    setNotasAdicionales('')
+    setPedido({})
+    setCoords({ lat: -17.3895, lng: -66.1568 })
+    setImagenPago(null)
+    setPaso(1)
+  }
+
+  // Guardar borrador al cambiar cualquier dato relevante
+  useEffect(() => {
+    if (nombre || Object.keys(pedido).length > 0 || direccion) {
+      const datos = {
+        nombre, personas, fecha, hora, tipoEntrega, direccion, zona, referencia, notasAdicionales, pedido, coords
+      }
+      localStorage.setItem('jardin_reserva_temporal', JSON.stringify(datos))
+    }
+  }, [nombre, personas, fecha, hora, tipoEntrega, direccion, zona, referencia, notasAdicionales, pedido, coords])
+
+  // Sincronizar el estado del modal con la historia del navegador (evita salir al presionar atrás)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (reservaModalAbierto) {
+        setReservaModalAbierto(false)
+        setPrefillReserva(null)
+      }
+    }
+
+    if (reservaModalAbierto) {
+      window.history.pushState({ modal: 'reserva' }, '')
+      window.addEventListener('popstate', handlePopState)
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      if (!reservaModalAbierto && window.history.state?.modal === 'reserva') {
+        window.history.back()
+      }
+    }
+  }, [reservaModalAbierto])
 
   // Cargar PROMOCIONES desde el backend
   useEffect(() => {
@@ -1959,6 +2115,9 @@ export default function App() {
         }
         if (data.galeria_mosaico && Array.isArray(data.galeria_mosaico) && data.galeria_mosaico.length > 0) {
           setGaleriaItems(data.galeria_mosaico)
+        }
+        if (data.qr_pago && data.qr_pago.imagen) {
+          setQrPago(data.qr_pago.imagen)
         }
       })
       .catch(err => {
@@ -2051,11 +2210,14 @@ export default function App() {
       <FloatingNavbar />
       <HeroGallery slides={heroSlides} />
       <GaleriaMosaico items={itemsProcesados} />
-      <NuestraCarta menu={menu} />
+      <NuestraCarta menu={menu} pedido={pedido} setPedido={setPedido} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
       <UbicacionContacto onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
       <Footer onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
-      <WhatsAppFAB onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} />
+      <WhatsAppFAB 
+        onOpenReserva={() => { setPrefillReserva(null); setReservaModalAbierto(true); }} 
+        className={totalEstimado > 0 ? 'cart-active' : ''}
+      />
       <ChatbotFlotante 
         onPreReserva={(data) => {
           setPrefillReserva(data);
@@ -2071,7 +2233,61 @@ export default function App() {
         }} 
         menuItems={menuItemsFlat} 
         prefillData={prefillReserva}
+        qrPagoRestaurante={qrPago}
+        tipoEntrega={tipoEntrega}
+        setTipoEntrega={setTipoEntrega}
+        paso={paso}
+        setPaso={setPaso}
+        nombre={nombre}
+        setNombre={setNombre}
+        personas={personas}
+        setPersonas={setPersonas}
+        fecha={fecha}
+        setFecha={setFecha}
+        hora={hora}
+        setHora={setHora}
+        direccion={direccion}
+        setDireccion={setDireccion}
+        zona={zona}
+        setZona={setZona}
+        referencia={referencia}
+        setReferencia={setReferencia}
+        notasAdicionales={notasAdicionales}
+        setNotasAdicionales={setNotasAdicionales}
+        pedido={pedido}
+        setPedido={setPedido}
+        coords={coords}
+        setCoords={setCoords}
+        imagenPago={imagenPago}
+        setImagenPago={setImagenPago}
+        totalEstimado={totalEstimado}
+        deposito={deposito}
+        qrUrl={qrUrl}
+        steps={steps}
+        stepLabels={stepLabels}
+        currentStep={currentStep}
+        resetFormulario={resetFormulario}
       />
+
+      {totalEstimado > 0 && !reservaModalAbierto && (
+        <div className="floating-cart-bar">
+          <div className="floating-cart-info">
+            <span className="floating-cart-count">🛒 {itemsSeleccionados.reduce((acc, i) => acc + i.cantidad, 0)} platos</span>
+            <span className="floating-cart-divider">|</span>
+            <span className="floating-cart-total">Bs {totalEstimado.toFixed(0)}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-gold floating-cart-btn"
+            onClick={() => {
+              setPrefillReserva(null);
+              setReservaModalAbierto(true);
+            }}
+          >
+            Confirmar Pedido ➔
+          </button>
+        </div>
+      )}
     </>
   )
 }

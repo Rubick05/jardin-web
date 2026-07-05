@@ -1374,9 +1374,22 @@ a {
   }
 
   .floating-navbar {
-    top: 16px;
-    width: 95%;
-    padding: 6px 12px;
+    top: 12px;
+    width: 96%;
+    padding: 4px 8px;
+  }
+
+  .floating-navbar-brand {
+    gap: 4px;
+  }
+
+  .floating-navbar-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .floating-navbar-menu {
+    gap: 2px;
   }
 
   .floating-navbar-text {
@@ -1384,8 +1397,8 @@ a {
   }
 
   .floating-navbar-link {
-    font-size: 0.78rem;
-    padding: 6px 10px;
+    font-size: 0.72rem;
+    padding: 5px 7px;
   }
 }
 
@@ -1986,6 +1999,167 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     max-height: 100vh !important;
     border-radius: 0 !important;
     margin: 0 !important;
+  }
+}
+
+/* ── inputs del Asistente de Reserva ── */
+.booking-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: #ede8dc;
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.booking-input:focus {
+  border-color: var(--gold);
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 3px rgba(200, 144, 58, 0.2);
+}
+
+.booking-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: block;
+  letter-spacing: 0.02em;
+}
+
+/* ── Botones de cantidad en la carta ── */
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qty-btn:hover {
+  background: var(--gold);
+  color: #000;
+}
+
+.add-to-cart-btn {
+  padding: 6px 14px !important;
+  font-size: 0.78rem !important;
+  border-radius: 8px !important;
+  height: auto !important;
+  box-shadow: 0 2px 8px rgba(200, 144, 58, 0.2) !important;
+}
+
+/* ── Barra de Carrito Flotante ── */
+.floating-cart-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 90%;
+  max-width: 600px;
+  padding: 12px 24px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 100px;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.floating-cart-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.floating-cart-count {
+  color: var(--gold-light);
+}
+
+.floating-cart-divider {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.floating-cart-total {
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--primary-light);
+}
+
+.floating-cart-btn {
+  padding: 10px 24px !important;
+  font-size: 0.85rem !important;
+  border-radius: 100px !important;
+  height: auto !important;
+  box-shadow: 0 4px 14px rgba(200, 144, 58, 0.4) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Elevación de los botones de chatbot y WhatsApp si el carrito está activo en móvil */
+@media (max-width: 600px) {
+  .floating-cart-bar {
+    bottom: 20px;
+    padding: 10px 16px;
+    width: 95%;
+  }
+  
+  .floating-cart-info {
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+  
+  .floating-cart-total {
+    font-size: 0.95rem;
+  }
+  
+  .floating-cart-btn {
+    padding: 8px 16px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .whatsapp-fab.cart-active {
+    bottom: 96px !important;
+  }
+
+  .chatbot-toggle {
+    transition: bottom 0.4s ease;
+  }
+  /* Si hay carrito, subimos también el chatbot toggle */
+  .floating-cart-bar ~ .chatbot-toggle,
+  body:has(.floating-cart-bar) .chatbot-toggle {
+    bottom: 160px !important;
   }
 }
 
