@@ -187,7 +187,7 @@ function FloatingNavbar() {
 //  HERO GALLERY — Slideshow fullscreen con Ken Burns
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HeroGallery({ slides }) {
+function HeroGallery({ slides, onOpenReserva }) {
   const [indiceActual, setIndiceActual] = useState(0)
   const [indicePrevio, setIndicePrevio] = useState(null)
   const timerRef = useRef(null)
@@ -253,10 +253,7 @@ function HeroGallery({ slides }) {
             Ver el Menú
           </button>
           <button 
-            onClick={() => {
-              const el = document.getElementById('contacto')
-              if (el) el.scrollIntoView({ behavior: 'smooth' })
-            }} 
+            onClick={onOpenReserva} 
             className="btn btn-outline"
           >
             Reservar Mesa
@@ -1796,27 +1793,27 @@ export default function App() {
     }
   }, [nombre, personas, fecha, hora, tipoEntrega, direccion, zona, referencia, notasAdicionales, pedido, coords])
 
-  // Sincronizar el estado del modal con la historia del navegador (evita salir al presionar atrás)
+  // Sincronizar el estado de la vista de pedidos con la historia del navegador (evita salir al presionar atrás en móviles)
   useEffect(() => {
     const handlePopState = (e) => {
-      if (reservaModalAbierto) {
-        setReservaModalAbierto(false)
+      if (vistaActiva === 'pedidos') {
+        setVistaActiva('inicio')
         setPrefillReserva(null)
       }
     }
 
-    if (reservaModalAbierto) {
-      window.history.pushState({ modal: 'reserva' }, '')
+    if (vistaActiva === 'pedidos') {
+      window.history.pushState({ vista: 'pedidos' }, '')
       window.addEventListener('popstate', handlePopState)
     }
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
-      if (!reservaModalAbierto && window.history.state?.modal === 'reserva') {
+      if (vistaActiva !== 'pedidos' && window.history.state?.vista === 'pedidos') {
         window.history.back()
       }
     }
-  }, [reservaModalAbierto])
+  }, [vistaActiva])
 
   // Cargar PROMOCIONES desde el backend
   useEffect(() => {
@@ -1924,6 +1921,20 @@ export default function App() {
         if (err.name !== 'AbortError') {
           console.warn('No se pudo cargar el menú desde la API, usando fallbacks:', err.message)
         }
+        // POPULAR CON FALLBACK_MENU_ITEMS EN CASO DE FALLA
+        setMenuItemsFlat(FALLBACK_MENU_ITEMS)
+        const nuevoMenu = {
+          principales: [],
+          entradas: [],
+          bebidas: []
+        }
+        FALLBACK_MENU_ITEMS.forEach(item => {
+          const catClasificada = clasificarCategoria(item.categoria)
+          if (nuevoMenu[catClasificada]) {
+            nuevoMenu[catClasificada].push(item)
+          }
+        })
+        setMenu(nuevoMenu)
       })
     return () => controller.abort()
   }, [])
@@ -1945,10 +1956,50 @@ export default function App() {
     return item
   })
 
+  if (vistaActiva === 'pedidos') {
+    return (
+      <PaginaPedidosYReservas
+        menuItems={menuItemsFlat}
+        qrPagoRestaurante={qrPago}
+        tipoEntrega={tipoEntrega}
+        setTipoEntrega={setTipoEntrega}
+        paso={paso}
+        setPaso={setPaso}
+        nombre={nombre}
+        setNombre={setNombre}
+        personas={personas}
+        setPersonas={setPersonas}
+        fecha={fecha}
+        setFecha={setFecha}
+        hora={hora}
+        setHora={setHora}
+        direccion={direccion}
+        setDireccion={setDireccion}
+        zona={zona}
+        setZona={setZona}
+        referencia={referencia}
+        setReferencia={setReferencia}
+        notasAdicionales={notasAdicionales}
+        setNotasAdicionales={setNotasAdicionales}
+        pedido={pedido}
+        setPedido={setPedido}
+        coords={coords}
+        setCoords={setCoords}
+        imagenPago={imagenPago}
+        setImagenPago={setImagenPago}
+        totalEstimado={totalEstimado}
+        deposito={deposito}
+        qrUrl={qrUrl}
+        resetFormulario={resetFormulario}
+        onVolver={() => setVistaActiva('inicio')}
+      />
+    )
+  }
+
   return (
     <>
       <FloatingNavbar />
-      <HeroGallery slides={heroSlides} />
+      <HeroGallery slides={heroSlides} onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} />
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} pedido={pedido} setPedido={setPedido} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
@@ -1961,7 +2012,7 @@ export default function App() {
       <ChatbotFlotante 
         onPreReserva={(data) => {
           setPrefillReserva(data);
-          setReservaModalAbierto(true);
+          setVistaActiva('pedidos');
         }}
         menuItems={menuItemsFlat}
       />
@@ -1979,7 +2030,7 @@ export default function App() {
             className="btn btn-gold floating-cart-btn"
             onClick={() => {
               setPrefillReserva(null);
-              setReservaModalAbierto(true);
+              setVistaActiva('pedidos');
             }}
           >
             Confirmar Pedido ➔
