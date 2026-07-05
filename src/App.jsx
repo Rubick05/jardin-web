@@ -1231,13 +1231,15 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
       {/* HEADER */}
       <header className="pedidos-header">
         <div className="pedidos-header-inner">
-          <button className="pedidos-back-btn" onClick={onVolver}>
-            ← Volver al Inicio
-          </button>
-          
-          <div className="pedidos-brand">
-            <img src="/logo-hoja.png" alt="El Jardín" />
-            <h2>El Jardín</h2>
+          <div className="pedidos-header-top-row">
+            <button className="pedidos-back-btn" onClick={onVolver}>
+              ← Volver al Inicio
+            </button>
+            
+            <div className="pedidos-brand">
+              <img src="/logo-hoja.png" alt="El Jardín" />
+              <h2>El Jardín</h2>
+            </div>
           </div>
 
           <div className="pedidos-type-toggle">
