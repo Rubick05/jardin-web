@@ -803,6 +803,8 @@ function PaginaPedidosYReservas({
   qrPagoRestaurante,
   tipoEntrega,
   setTipoEntrega,
+  paso,
+  setPaso,
   nombre,
   setNombre,
   personas,
@@ -833,7 +835,6 @@ function PaginaPedidosYReservas({
 }) {
   const [buscarPlato, setBuscarPlato] = useState('')
   const [categoriaActiva, setCategoriaActiva] = useState('Todos')
-  const [mostrarCheckoutMobile, setMostrarCheckoutMobile] = useState(false)
   const [alertaFecha, setAlertaFecha] = useState('')
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const inputPagoRef = useRef(null)
@@ -961,7 +962,7 @@ function PaginaPedidosYReservas({
   }
 
   useEffect(() => {
-    if (tipoEntrega !== 'delivery') return
+    if (tipoEntrega !== 'delivery' || paso !== 1) return
     const mapElement = document.getElementById('map-selection')
     if (!mapElement) return
 
@@ -998,7 +999,7 @@ function PaginaPedidosYReservas({
     return () => {
       isMounted = false
     }
-  }, [tipoEntrega, mostrarCheckoutMobile])
+  }, [tipoEntrega, paso])
 
   const descargarQR = async () => {
     if (qrPagoRestaurante) {
@@ -1088,152 +1089,42 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
     }
 
     resetFormulario()
-    setMostrarCheckoutMobile(false)
 
     const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
     onVolver()
   }
 
-  const renderCheckoutForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div>
-        <label className="booking-label">Tu Nombre Completo</label>
-        <input type="text" placeholder="Ej: María González" value={nombre} onChange={e => setNombre(e.target.value)} className="booking-input" />
-      </div>
+  const irSiguientePaso = () => {
+    if (paso === 1) {
+      if (!nombre.trim()) { alert('Por favor ingresa tu nombre.'); return }
+      if (!fecha) { alert('Por favor selecciona la fecha.'); return }
+      if (!hora) { alert('Por favor selecciona la hora.'); return }
+      if (tipoEntrega === 'delivery') {
+        if (!direccion.trim()) { alert('Por favor ingresa la dirección de entrega.'); return }
+        if (!zona) { alert('Por favor selecciona tu zona/barrio.'); return }
+      }
+    } else if (paso === 2) {
+      if (tipoEntrega === 'delivery' && itemsSeleccionados.length === 0) {
+        alert('Por favor agrega al menos un plato a tu pedido de delivery.');
+        return;
+      }
+    }
+    setPaso(paso + 1)
+  }
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <div>
-          <label className="booking-label">Nº de Personas</label>
-          <input type="number" min="1" max="50" value={personas} onChange={e => setPersonas(parseInt(e.target.value) || 1)} className="booking-input" />
-        </div>
-        <div>
-          <label className="booking-label">Hora de Llegada</label>
-          <input type="time" value={hora} onChange={e => setHora(e.target.value)} className="booking-input" />
-        </div>
-      </div>
-
-      <div>
-        <label className="booking-label">Fecha</label>
-        <input type="date" value={fecha} onChange={handleFechaChange} className="booking-input" />
-        {alertaFecha && <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: 500, lineHeight: 1.4 }}>{alertaFecha}</p>}
-        <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#666' }}>Atención: Jueves 11–23h · Sábado y Domingo 12–23h</p>
-      </div>
-
-      {tipoEntrega === 'delivery' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div>
-            <label className="booking-label">Ubicación en el mapa <span style={{ color: '#ef4444' }}>*</span></label>
-            <div id="map-selection" style={{ height: '180px', width: '100%', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.4)', overflow: 'hidden' }} />
-            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>📍 Arrastra el marcador rojo para fijar tu dirección.</p>
-          </div>
-
-          <div>
-            <label className="booking-label">Dirección Completa <span style={{ color: '#ef4444' }}>*</span></label>
-            <input type="text" placeholder="Calle, Nº de puerta, edificio..." value={direccion} onChange={e => setDireccion(e.target.value)} className="booking-input" />
-          </div>
-
-          <div>
-            <label className="booking-label">Zona / Barrio <span style={{ color: '#ef4444' }}>*</span></label>
-            <select value={zona} onChange={e => setZona(e.target.value)} className="booking-input" style={{ appearance: 'auto' }}>
-              <option value="">-- Selecciona tu zona --</option>
-              {ZONAS_COCHABAMBA.map(z => <option key={z} value={z}>{z}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="booking-label">Referencia del lugar</label>
-            <input type="text" placeholder="Ej: Edificio azul, frente al parque..." value={referencia} onChange={e => setReferencia(e.target.value)} className="booking-input" />
-          </div>
-
-          <div>
-            <label className="booking-label">Notas adicionales (opcional)</label>
-            <textarea placeholder="Ej: Tocar timbre..." value={notasAdicionales} onChange={e => setNotasAdicionales(e.target.value)} rows={2} className="booking-input" style={{ resize: 'none', fontFamily: 'inherit' }} />
-          </div>
-        </div>
-      )}
-
-      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--gold)', fontWeight: 'bold' }}>🛒 Resumen del Pedido</h4>
-        {itemsSeleccionados.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '12.5px', color: '#888', fontStyle: 'italic' }}>No has agregado platos aún.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {itemsSeleccionados.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                <span><span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{item.cantidad}×</span> {item.nombre}</span>
-                <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>Bs. {(item.precio_actual * item.cantidad).toFixed(0)}</span>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 'bold', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
-              <span>Total Estimado:</span>
-              <span style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. {totalEstimado.toFixed(0)}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{ background: 'rgba(34,197,94,0.03)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.15)', textAlign: 'center' }}>
-        <h4 style={{ margin: '0 0 4px', fontSize: '13px', color: '#22c55e', fontWeight: 'bold' }}>
-          {tipoEntrega === 'delivery' ? '💳 Pago completo en su totalidad' : '💳 Pago anticipado requerido'}
-        </h4>
-        <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#aaa', lineHeight: 1.4 }}>
-          Monto a transferir: <strong style={{ color: 'var(--gold-light)', fontFamily: 'monospace', fontSize: '14px' }}>Bs. {deposito.toFixed(0)}</strong>
-        </p>
-        
-        <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', display: 'inline-block', marginBottom: '10px' }}>
-          <img src={qrPagoRestaurante || qrUrl} alt="QR El Jardín" width={150} height={150} style={{ display: 'block', borderRadius: '4px' }} />
-        </div>
-
-        <div style={{ marginBottom: '10px' }}>
-          <button type="button" onClick={descargarQR} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px 12px', color: 'var(--gold-light)', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-            📥 Descargar QR
-          </button>
-        </div>
-
-        <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#888' }}>Escanea el QR y sube tu comprobante.</p>
-
-        <input
-          ref={inputPagoRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={async (e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            setProcesandoImagen(true)
-            try {
-              const b64 = await comprimirImagenLocal(file, 800, 0.8)
-              setImagenPago(b64)
-            } catch { alert('Error al cargar imagen') }
-            finally { setProcesandoImagen(false); e.target.value = '' }
-          }}
-        />
-
-        <button
-          type="button"
-          disabled={procesandoImagen}
-          onClick={() => inputPagoRef.current?.click()}
-          style={{
-            width: '100%', padding: '10px', fontSize: '12px', border: '1.5px dashed rgba(255,255,255,0.15)',
-            background: imagenPago ? 'rgba(34,197,94,0.1)' : 'transparent', color: imagenPago ? '#22c55e' : '#ccc',
-            borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500'
-          }}
-        >
-          {procesandoImagen ? '⏳ Procesando...' : imagenPago ? '✅ Comprobante Adjunto' : '📸 Subir Comprobante de Pago'}
-        </button>
-      </div>
-    </div>
-  )
+  const irPasoAnterior = () => {
+    setPaso(paso - 1)
+  }
 
   return (
     <div className="pedidos-layout">
-      {/* HEADER */}
+      {/* HEADER CON PROGRESO POR PASOS */}
       <header className="pedidos-header">
         <div className="pedidos-header-inner">
           <div className="pedidos-header-top-row">
-            <button className="pedidos-back-btn" onClick={onVolver}>
-              ← Volver al Inicio
+            <button className="pedidos-back-btn" onClick={paso > 1 ? irPasoAnterior : onVolver}>
+              ← {paso > 1 ? 'Atrás' : 'Volver al Inicio'}
             </button>
             
             <div className="pedidos-brand">
@@ -1242,139 +1133,342 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
             </div>
           </div>
 
-          <div className="pedidos-type-toggle">
-            <button type="button" className={`pedidos-toggle-btn ${tipoEntrega === 'local' ? 'active' : ''}`} onClick={() => setTipoEntrega('local')}>
-              Mesa
-            </button>
-            <button type="button" className={`pedidos-toggle-btn ${tipoEntrega === 'delivery' ? 'active' : ''}`} onClick={() => setTipoEntrega('delivery')}>
-              Delivery
-            </button>
+          {/* Stepper horizontal premium */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '500px', margin: '8px auto 0', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '24px', height: '24px', borderRadius: '50%', background: paso >= 1 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
+                color: paso >= 1 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
+              }}>1</span>
+              <span style={{ fontSize: '12px', color: paso === 1 ? 'var(--gold)' : '#888', fontWeight: paso === 1 ? 'bold' : 'normal' }}>Datos</span>
+            </div>
+            <div style={{ flex: 1, height: '1.5px', background: paso >= 2 ? 'var(--gold)' : 'rgba(255,255,255,0.1)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '24px', height: '24px', borderRadius: '50%', background: paso >= 2 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
+                color: paso >= 2 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
+              }}>2</span>
+              <span style={{ fontSize: '12px', color: paso === 2 ? 'var(--gold)' : '#888', fontWeight: paso === 2 ? 'bold' : 'normal' }}>Menú</span>
+            </div>
+            <div style={{ flex: 1, height: '1.5px', background: paso >= 3 ? 'var(--gold)' : 'rgba(255,255,255,0.1)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '24px', height: '24px', borderRadius: '50%', background: paso >= 3 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
+                color: paso >= 3 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
+              }}>3</span>
+              <span style={{ fontSize: '12px', color: paso === 3 ? 'var(--gold)' : '#888', fontWeight: paso === 3 ? 'bold' : 'normal' }}>Pago</span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* CONTAINER */}
-      <main className="pedidos-container">
-        {/* EXPLORADOR DE PLATOS */}
-        <section className="pedidos-browser">
-          {/* Barra de Búsqueda */}
-          <div className="pedidos-search-bar">
-            <Search className="pedidos-search-icon" size={20} />
-            <input
-              type="text"
-              placeholder="¿Qué te gustaría comer hoy? Busca tu plato..."
-              value={buscarPlato}
-              onChange={e => setBuscarPlato(e.target.value)}
-              className="pedidos-search-input"
-            />
-          </div>
-
-          {/* Categorías (Píldoras) */}
-          <div className="pedidos-categories-scroll">
-            {categoriasDisponibles.map(cat => (
+      {/* CONTENIDO PRINCIPAL POR PASOS */}
+      <main className="pedidos-container" style={{ gridTemplateColumns: '1fr', maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
+        
+        {/* PASO 1: DATOS Y CONFIGURACIÓN DEL PEDIDO */}
+        {paso === 1 && (
+          <div className="pedidos-step-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-mid)', border: '1px solid var(--border-light)', borderRadius: '18px', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>📋 Datos de tu Pedido o Reserva</h3>
+            
+            {/* Selector de Entrega */}
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
               <button
-                key={cat}
                 type="button"
-                className={`pedidos-category-pill ${categoriaActiva === cat ? 'active' : ''}`}
-                onClick={() => setCategoriaActiva(cat)}
+                onClick={() => setTipoEntrega('local')}
+                style={{
+                  flex: 1, border: 'none', background: tipoEntrega === 'local' ? 'var(--gold)' : 'transparent',
+                  color: tipoEntrega === 'local' ? '#000' : 'var(--text-secondary)', padding: '11px',
+                  fontSize: '13px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s'
+                }}
               >
-                {cat}
+                Mesa en Local 🪴
               </button>
-            ))}
-          </div>
-
-          {/* Grilla de Platos */}
-          <div className="pedidos-dishes-grid">
-            {itemsFiltrados.length === 0 ? (
-              <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '40px 0', color: '#666', fontSize: '14px' }}>
-                No se encontraron platos que coincidan con tu búsqueda.
-              </div>
-            ) : (
-              itemsFiltrados.map((item) => {
-                const imageSrc = item.imagen_base64 || item.url_imagen
-                const formattedPrice = typeof item.precio_actual === 'number'
-                  ? `Bs. ${item.precio_actual}`
-                  : item.precio || 'Consultar'
-                const cant = pedido[item.id] || 0
-
-                return (
-                  <div className="pedidos-dish-card" key={item.id}>
-                    {imageSrc && (
-                      <div className="pedidos-dish-img-container" onClick={() => setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}>
-                        <img src={imageSrc} alt={item.nombre} loading="lazy" />
-                      </div>
-                    )}
-                    <div className="pedidos-dish-info">
-                      <div className="pedidos-dish-details">
-                        <h4 className="pedidos-dish-name" onClick={() => imageSrc && setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })} style={{ cursor: imageSrc ? 'pointer' : 'default' }}>{item.nombre}</h4>
-                        <p className="pedidos-dish-desc">{item.descripcion || 'Sin descripción'}</p>
-                      </div>
-                      <div className="pedidos-dish-action">
-                        <span className="pedidos-dish-price">{formattedPrice}</span>
-                        {cant > 0 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <button type="button" onClick={() => decrementar(item.id)} className="qty-btn">−</button>
-                            <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: 'var(--gold)' }}>{cant}</span>
-                            <button type="button" onClick={() => incrementar(item.id)} className="qty-btn">+</button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => incrementar(item.id)} className="btn btn-gold add-to-cart-btn">
-                            + Agregar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </section>
-
-        {/* SIDEBAR DE CHECKOUT Y CARRITO (Escritorio) */}
-        <aside className="pedidos-checkout-sidebar">
-          <div className="pedidos-sidebar-header">
-            <h3>🛒 Confirmación del Pedido</h3>
-          </div>
-          <div className="pedidos-sidebar-scroll">
-            {renderCheckoutForm()}
-          </div>
-        </aside>
-
-        {/* SIDEBAR DE CHECKOUT Y CARRITO (Móvil) */}
-        <div className={`pedidos-checkout-sidebar ${mostrarCheckoutMobile ? 'open-mobile' : ''}`}>
-          <div className="pedidos-sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3>🛒 Confirmar Reserva / Pedido</h3>
-            <button
-              type="button"
-              onClick={() => setMostrarCheckoutMobile(false)}
-              style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              Cerrar ✕
-            </button>
-          </div>
-          <div className="pedidos-sidebar-scroll">
-            {renderCheckoutForm()}
-          </div>
-        </div>
-
-        {/* Barra flotante móvil para ver el carrito */}
-        {totalCantidad > 0 && (
-          <div className="pedidos-mobile-cart-strip">
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '11px', color: '#888' }}>Total de tu orden</span>
-              <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. ${totalEstimado.toFixed(0)}</span>
+              <button
+                type="button"
+                onClick={() => setTipoEntrega('delivery')}
+                style={{
+                  flex: 1, border: 'none', background: tipoEntrega === 'delivery' ? 'var(--gold)' : 'transparent',
+                  color: tipoEntrega === 'delivery' ? '#000' : 'var(--text-secondary)', padding: '11px',
+                  fontSize: '13px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                Envío a Domicilio 🛵
+              </button>
             </div>
-            <button
-              type="button"
-              className="btn btn-gold"
-              onClick={() => setMostrarCheckoutMobile(true)}
-              style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '13px', height: 'auto' }}
-            >
-              Ver Carrito (${totalCantidad}) ➔
+
+            {/* Datos Personales */}
+            <div>
+              <label className="booking-label">Tu Nombre Completo</label>
+              <input type="text" placeholder="Ej: María González" value={nombre} onChange={e => setNombre(e.target.value)} className="booking-input" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label className="booking-label">Nº de Personas</label>
+                <input type="number" min="1" max="50" value={personas} onChange={e => setPersonas(parseInt(e.target.value) || 1)} className="booking-input" />
+              </div>
+              <div>
+                <label className="booking-label">Hora</label>
+                <input type="time" value={hora} onChange={e => setHora(e.target.value)} className="booking-input" />
+              </div>
+            </div>
+
+            <div>
+              <label className="booking-label">Fecha</label>
+              <input type="date" value={fecha} onChange={handleFechaChange} className="booking-input" />
+              {alertaFecha && <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: 500, lineHeight: 1.4 }}>{alertaFecha}</p>}
+            </div>
+
+            {/* Si es Delivery, datos de ubicación */}
+            {tipoEntrega === 'delivery' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--gold)' }}>📍 Dirección de Entrega</h4>
+                
+                <div>
+                  <label className="booking-label">Ubícate en el mapa <span style={{ color: '#ef4444' }}>*</span></label>
+                  <div id="map-selection" style={{ height: '200px', width: '100%', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', overflow: 'hidden' }} />
+                  <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>📍 Arrastra el marcador rojo para fijar tu ubicación GPS.</p>
+                </div>
+
+                <div>
+                  <label className="booking-label">Dirección Completa <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" placeholder="Calle, número de casa, edificio..." value={direccion} onChange={e => setDireccion(e.target.value)} className="booking-input" />
+                </div>
+
+                <div>
+                  <label className="booking-label">Zona / Barrio <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select value={zona} onChange={e => setZona(e.target.value)} className="booking-input" style={{ appearance: 'auto' }}>
+                    <option value="">-- Selecciona tu zona --</option>
+                    {ZONAS_COCHABAMBA.map(z => <option key={z} value={z}>{z}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="booking-label">Referencia</label>
+                  <input type="text" placeholder="Ej: Frente a la plaza, portón negro..." value={referencia} onChange={e => setReferencia(e.target.value)} className="booking-input" />
+                </div>
+
+                <div>
+                  <label className="booking-label">Notas para el repartidor (opcional)</label>
+                  <textarea placeholder="Ej: Tocar timbre..." value={notasAdicionales} onChange={e => setNotasAdicionales(e.target.value)} rows={2} className="booking-input" style={{ resize: 'none', fontFamily: 'inherit' }} />
+                </div>
+              </div>
+            )}
+
+            <button type="button" onClick={irSiguientePaso} className="btn btn-gold" style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 'bold', marginTop: '10px' }}>
+              Continuar a la Selección de Platos ➔
             </button>
           </div>
         )}
+
+        {/* PASO 2: SELECCIÓN DE PLATOS (MENÚ INTERACTIVO) */}
+        {paso === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-mid)', padding: '14px 20px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+              <div>
+                <span style={{ fontSize: '12px', color: '#888' }}>Pedido para:</span>
+                <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--gold)' }}>{nombre} ({tipoEntrega === 'delivery' ? '🛵 Delivery' : '🪴 Mesa'})</h4>
+              </div>
+              <button type="button" onClick={irPasoAnterior} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
+                ✏️ Editar Datos
+              </button>
+            </div>
+
+            {/* Explorador de Platos */}
+            <section className="pedidos-browser">
+              {/* Barra de Búsqueda */}
+              <div className="pedidos-search-bar">
+                <Search className="pedidos-search-icon" size={20} />
+                <input
+                  type="text"
+                  placeholder="¿Qué te gustaría comer hoy? Busca tu plato..."
+                  value={buscarPlato}
+                  onChange={e => setBuscarPlato(e.target.value)}
+                  className="pedidos-search-input"
+                />
+              </div>
+
+              {/* Categorías */}
+              <div className="pedidos-categories-scroll">
+                {categoriasDisponibles.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`pedidos-category-pill ${categoriaActiva === cat ? 'active' : ''}`}
+                    onClick={() => setCategoriaActiva(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grilla de Platos */}
+              <div className="pedidos-dishes-grid">
+                {itemsFiltrados.length === 0 ? (
+                  <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '40px 0', color: '#666', fontSize: '14px' }}>
+                    No se encontraron platos que coincidan con tu búsqueda.
+                  </div>
+                ) : (
+                  itemsFiltrados.map((item) => {
+                    const imageSrc = item.imagen_base64 || item.url_imagen
+                    const formattedPrice = typeof item.precio_actual === 'number'
+                      ? `Bs. ${item.precio_actual}`
+                      : item.precio || 'Consultar'
+                    const cant = pedido[item.id] || 0
+
+                    return (
+                      <div className="pedidos-dish-card" key={item.id}>
+                        {imageSrc && (
+                          <div className="pedidos-dish-img-container" onClick={() => setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}>
+                            <img src={imageSrc} alt={item.nombre} loading="lazy" />
+                          </div>
+                        )}
+                        <div className="pedidos-dish-info">
+                          <div className="pedidos-dish-details">
+                            <h4 className="pedidos-dish-name" onClick={() => imageSrc && setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })} style={{ cursor: imageSrc ? 'pointer' : 'default' }}>{item.nombre}</h4>
+                            <p className="pedidos-dish-desc">{item.descripcion || 'Sin descripción'}</p>
+                          </div>
+                          <div className="pedidos-dish-action">
+                            <span className="pedidos-dish-price">{formattedPrice}</span>
+                            {cant > 0 ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <button type="button" onClick={() => decrementar(item.id)} className="qty-btn">−</button>
+                                <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: 'var(--gold)' }}>{cant}</span>
+                                <button type="button" onClick={() => incrementar(item.id)} className="qty-btn">+</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => incrementar(item.id)} className="btn btn-gold add-to-cart-btn">
+                                + Agregar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </section>
+
+            {/* Footer flotante/pegajoso del paso 2 */}
+            <div style={{ display: 'flex', gap: '14px', marginTop: '10px' }}>
+              <button type="button" onClick={irPasoAnterior} className="btn" style={{ flex: 1, padding: '14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '12px' }}>
+                ← Volver a Datos
+              </button>
+              <button type="button" onClick={irSiguientePaso} className="btn btn-gold" style={{ flex: 2, padding: '14px', borderRadius: '12px', fontWeight: 'bold' }}>
+                Confirmar y Pagar (Bs. {totalEstimado.toFixed(0)}) ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* PASO 3: RECAPITULACIÓN Y PAGO (QR) */}
+        {paso === 3 && (
+          <div className="pedidos-step-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-mid)', border: '1px solid var(--border-light)', borderRadius: '18px', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>💳 Resumen y Confirmación de Pago</h3>
+
+            {/* Recapitulación de Datos de Reserva */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--gold)', fontWeight: 'bold' }}>👤 Detalles de la Reserva:</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '6px' }}>
+                <span style={{ color: '#888' }}>Nombre:</span><span style={{ fontWeight: 'bold' }}>{nombre}</span>
+                <span style={{ color: '#888' }}>Personas:</span><span>{personas}</span>
+                <span style={{ color: '#888' }}>Fecha y Hora:</span><span>{fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : ''} a las {hora} hs</span>
+                {tipoEntrega === 'delivery' && (
+                  <>
+                    <span style={{ color: '#888' }}>Dirección:</span><span>{direccion} ({zona})</span>
+                    <span style={{ color: '#888' }}>Referencia:</span><span>{referencia || 'Sin referencia'}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Recapitulación de platos */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--gold)', fontWeight: 'bold' }}>🛒 Platos seleccionados</h4>
+              {itemsSeleccionados.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#888', fontStyle: 'italic' }}>No has seleccionado ningún plato en el paso anterior.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {itemsSeleccionados.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                      <span><span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{item.cantidad}×</span> {item.nombre}</span>
+                      <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>Bs. {(item.precio_actual * item.cantidad).toFixed(0)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 'bold', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
+                    <span>Total Estimado:</span>
+                    <span style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* QR de Pago */}
+            <div style={{ background: 'rgba(34,197,94,0.03)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(34,197,94,0.15)', textAlign: 'center' }}>
+              <h4 style={{ margin: '0 0 4px', fontSize: '14px', color: '#22c55e', fontWeight: 'bold' }}>
+                {tipoEntrega === 'delivery' ? '💳 Pago completo en su totalidad' : '💳 Pago anticipado requerido'}
+              </h4>
+              <p style={{ margin: '0 0 14px', fontSize: '12px', color: '#aaa', lineHeight: 1.4 }}>
+                Monto a transferir: <strong style={{ color: 'var(--gold-light)', fontFamily: 'monospace', fontSize: '15px' }}>Bs. {deposito.toFixed(0)}</strong>
+              </p>
+              
+              <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', display: 'inline-block', marginBottom: '12px' }}>
+                <img src={qrPagoRestaurante || qrUrl} alt="QR El Jardín" width={160} height={160} style={{ display: 'block', borderRadius: '4px' }} />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <button type="button" onClick={descargarQR} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px 12px', color: 'var(--gold-light)', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  📥 Descargar QR
+                </button>
+              </div>
+
+              <p style={{ margin: '0 0 10px', fontSize: '11px', color: '#888' }}>Escanea el QR Tigo Money y sube tu comprobante de pago.</p>
+
+              {/* Subir comprobante */}
+              <input
+                ref={inputPagoRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setProcesandoImagen(true)
+                  try {
+                    const b64 = await comprimirImagenLocal(file, 800, 0.8)
+                    setImagenPago(b64)
+                  } catch { alert('Error al cargar imagen') }
+                  finally { setProcesandoImagen(false); e.target.value = '' }
+                }}
+              />
+
+              <button
+                type="button"
+                disabled={procesandoImagen}
+                onClick={() => inputPagoRef.current?.click()}
+                style={{
+                  width: '100%', padding: '11px', fontSize: '12.5px', border: '1.5px dashed rgba(255,255,255,0.15)',
+                  background: imagenPago ? 'rgba(34,197,94,0.1)' : 'transparent', color: imagenPago ? '#22c55e' : '#ccc',
+                  borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500'
+                }}
+              >
+                {procesandoImagen ? '⏳ Procesando...' : imagenPago ? '✅ Comprobante Adjunto (Clic para cambiar)' : '📸 Subir Comprobante de Pago'}
+              </button>
+            </div>
+
+            {/* Botones de acción del paso 3 */}
+            <div style={{ display: 'flex', gap: '14px', marginTop: '10px' }}>
+              <button type="button" onClick={irPasoAnterior} className="btn" style={{ flex: 1, padding: '14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '12px' }}>
+                ← Volver al Menú
+              </button>
+              <button type="button" onClick={enviarWhatsApp} className="btn btn-gold" style={{ flex: 2, padding: '14px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Pedir por WhatsApp ➔
+              </button>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Lightbox zoom de imagen */}
@@ -1398,7 +1492,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
             )}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', color: '#888' }}>Precio:</span>
-              <span style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. ${Number(imagenPreview.precio).toFixed(0)}</span>
+              <span style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(imagenPreview.precio).toFixed(0)}</span>
             </div>
           </div>
         </div>
@@ -1406,6 +1500,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
     </div>
   )
 }
+
 
 // Helper: comprimirImagen en jardin-web (canvas-based, inline)
 function comprimirImagenLocal(file, maxWidth = 900, quality = 0.82) {
