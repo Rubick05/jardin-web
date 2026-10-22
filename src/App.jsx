@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapPin, Clock, Phone, MessageCircle, X, Search, Mail } from 'lucide-react'
 import './index.css'
-
-// ─── API URL (backend Railway) ────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace('/api', '')
-  : 'https://restaurante-el-jardin-production-a426.up.railway.app'
+import {
+  cargarMenuDesdeSupabase,
+  cargarPromocionesDesdeSupabase,
+  cargarWebConfigDesdeSupabase,
+  resolverImagenPlato,
+  optimizarUrlImagen,
+  CATEGORIAS_CARTA,
+  clasificarCategoriaPlato,
+  FALLBACK_MENU_ITEMS,
+  API_URL
+} from './lib/api-menu.js'
 
 // ─── FALLBACK DATA (cuando la API no responde) ────────────────────────────────
 const FALLBACK_PROMOS = [
@@ -57,32 +63,14 @@ const GALERIA_ITEMS = [
   }
 ]
 
-// ─── Optimizador Universal de Imágenes (Cloudinary WebP + Auto-Format) ─────────
-export function optimizarUrlImagen(url, width = 800) {
-  if (!url || typeof url !== 'string') return url
-  if (url.startsWith('data:') || (url.startsWith('/') && !url.startsWith('//'))) return url
-
-  // Si es Cloudinary, inyectar transformaciones automáticas f_auto, q_auto y resize
-  if (url.includes('cloudinary.com') && url.includes('/image/upload/')) {
-    if (!url.includes('f_auto') && !url.includes('q_auto')) {
-      return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,w_${width},c_limit/`)
-    }
-  }
-
-  return url
-}
-
 // ─── Datos del Menú (Nuestra Carta) ───────────────────────────────────────────
-const MENU_CATEGORIAS = [
-  { id: 'principales', nombre: 'Platos Tradicionales' },
-  { id: 'entradas', nombre: 'Entradas y Acompañamientos' },
-  { id: 'bebidas', nombre: 'Bebidas y Refrescos' }
-]
+const MENU_CATEGORIAS = CATEGORIAS_CARTA
 
 const MENU_ITEMS = {
   principales: [],
-  entradas: [],
-  bebidas: []
+  caldos: [],
+  refrescos: [],
+  cervezas: []
 }
 
 // ─── Icono SVG de WhatsApp reutilizable ───────────────────────────────────────
@@ -464,6 +452,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
               className={`menu-tab-btn ${categoriaActiva === cat.id ? 'active' : ''}`}
               onClick={() => setCategoriaActiva(cat.id)}
             >
+              <span style={{ marginRight: '6px' }}>{cat.icon}</span>
               {cat.nombre}
             </button>
           ))}
@@ -477,10 +466,10 @@ function NuestraCarta({ menu, pedido, setPedido }) {
             </div>
           ) : (
             platos.map((item, index) => {
-              const imageSrc = optimizarUrlImagen(item.imagen_base64 || item.url_imagen, 800)
+              const imageSrc = item.imagenResuelta || resolverImagenPlato(item, platos)
               const formattedPrice = typeof item.precio_actual === 'number'
                 ? `Bs. ${item.precio_actual}`
-                : item.precio || 'Consultar'
+                : (item.precio ? `Bs. ${item.precio}` : 'Consultar')
               const cant = pedido[item.id] || 0
 
               return (
@@ -937,30 +926,26 @@ function PaginaPedidosYReservas({
   const totalCantidad = itemsSeleccionados.reduce((acc, i) => acc + i.cantidad, 0)
 
   // Categorías de platos disponibles
-  const categoriasDisponibles = ['Todos', ...new Set(menuItems.filter(item => item.disponible !== false).map(item => {
-    const cat = item.categoria || 'principales'
-    if (cat.toLowerCase().includes('refresco') || cat.toLowerCase().includes('bebida')) return 'Bebidas'
-    if (cat.toLowerCase().includes('caldo') || cat.toLowerCase().includes('sopa')) return 'Caldos'
-    return 'Platos Fuertes'
-  }))]
+  const categoriasDisponibles = ['Todos', 'Platos Tradicionales', 'Caldos y Sopas', 'Refrescos Caseros', 'Cervezas & Tradición']
 
   const itemsFiltrados = menuItems.filter(item => {
     if (item.disponible === false) return false
     
     // Filtro por categoría
     if (categoriaActiva !== 'Todos') {
-      const cat = (item.categoria || '').toLowerCase()
-      let normalizada = 'Platos Fuertes'
-      if (cat.includes('refresco') || cat.includes('bebida')) normalizada = 'Bebidas'
-      else if (cat.includes('caldo') || cat.includes('sopa')) normalizada = 'Caldos'
+      const catClasif = clasificarCategoriaPlato(item.categoria)
+      let nombreCat = 'Platos Tradicionales'
+      if (catClasif === 'caldos') nombreCat = 'Caldos y Sopas'
+      else if (catClasif === 'refrescos') nombreCat = 'Refrescos Caseros'
+      else if (catClasif === 'cervezas') nombreCat = 'Cervezas & Tradición'
       
-      if (normalizada !== categoriaActiva) return false
+      if (nombreCat !== categoriaActiva) return false
     }
 
     // Filtro por búsqueda de texto
     if (buscarPlato.trim()) {
       const query = buscarPlato.toLowerCase()
-      const matchNombre = item.nombre.toLowerCase().includes(query)
+      const matchNombre = (item.nombre || '').toLowerCase().includes(query)
       const matchDesc = (item.descripcion || '').toLowerCase().includes(query)
       return matchNombre || matchDesc
     }
@@ -1396,10 +1381,10 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                   </div>
                 ) : (
                   itemsFiltrados.map((item) => {
-                    const imageSrc = optimizarUrlImagen(item.imagen_base64 || item.url_imagen, 600)
+                    const imageSrc = item.imagenResuelta || resolverImagenPlato(item, menuItems)
                     const formattedPrice = typeof item.precio_actual === 'number'
                       ? `Bs. ${item.precio_actual}`
-                      : item.precio || 'Consultar'
+                      : (item.precio ? `Bs. ${item.precio}` : 'Consultar')
                     const cant = pedido[item.id] || 0
 
                     return (
@@ -1632,60 +1617,6 @@ const ZONAS_COCHABAMBA = [
 ]
 
 
-const FALLBACK_MENU_ITEMS = [
-  {
-    id: 'pampaku-id',
-    nombre: 'Jatun Pampaku',
-    precio_actual: 110,
-    categoria: 'principales',
-    disponible: true,
-    url_imagen: '/pampaku.jpg',
-    descripcion: 'Especialidad de la casa: carnes mixtas cocidas bajo tierra con piedras volcánicas.'
-  },
-  {
-    id: 'pique-id',
-    nombre: 'Pique Macho (Entero)',
-    precio_actual: 120,
-    categoria: 'principales',
-    disponible: true,
-    url_imagen: '/charque.jpg',
-    descripcion: 'Carne de res jugosa, salchichas, papas fritas, huevo, queso y locoto.'
-  },
-  {
-    id: 'charque-id',
-    nombre: 'Charque Criollo (Entero)',
-    precio_actual: 120,
-    categoria: 'principales',
-    disponible: true,
-    url_imagen: '/charque.jpg',
-    descripcion: 'Carne deshidratada desmenuzada y frita crujiente, con mote, huevo y queso.'
-  },
-  {
-    id: 'planchita-id',
-    nombre: 'Planchita (Entera)',
-    precio_actual: 120,
-    categoria: 'principales',
-    disponible: true,
-    url_imagen: '/pampaku.jpg',
-    descripcion: 'Carnes, chorizos y tubérculos calientes sobre plancha.'
-  },
-  {
-    id: 'uchu-id',
-    nombre: 'Fideos Uchu (Personal)',
-    precio_actual: 40,
-    categoria: 'entradas',
-    disponible: true,
-    descripcion: 'Delicioso ají de fideos tradicional cochabambino.'
-  },
-  {
-    id: 'coca-id',
-    nombre: 'Coca Cola 2L',
-    precio_actual: 15,
-    categoria: 'bebidas',
-    disponible: true,
-    descripcion: 'Gaseosa familiar.'
-  }
-]
 
 // Función para renderizar el texto del Chatbot formateando negritas (**texto**) y viñetas
 function renderizarMensaje(texto) {
@@ -1998,128 +1929,77 @@ export default function App() {
     }
   }, [vistaActiva])
 
-  // Cargar PROMOCIONES desde el backend
+  // Cargar PROMOCIONES desde Supabase / API
   useEffect(() => {
-    const controller = new AbortController()
-    fetch(`${API_URL}/api/promociones`, { signal: controller.signal })
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar promociones')
-        return res.json()
-      })
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPromosAPI(data)
-        }
-        setLoadingPromos(false)
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError') {
-          console.warn('No se pudo cargar promociones desde la API, usando fallback:', err.message)
-        }
-        setLoadingPromos(false)
-      })
-    return () => controller.abort()
+    let activo = true
+    cargarPromocionesDesdeSupabase().then(data => {
+      if (activo && Array.isArray(data) && data.length > 0) {
+        setPromosAPI(data)
+      }
+      setLoadingPromos(false)
+    }).catch(() => {
+      if (activo) setLoadingPromos(false)
+    })
+    return () => { activo = false }
   }, [])
 
-  // Cargar CONFIGURACIÓN WEB (Hero Slides y Galería Mosaico) desde el backend
+  // Cargar CONFIGURACIÓN WEB (Hero Slides, Galería y QR) desde Supabase / API
   useEffect(() => {
-    const controller = new AbortController()
-    fetch(`${API_URL}/api/web-config`, { signal: controller.signal })
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar config web')
-        return res.json()
-      })
-      .then(data => {
-        if (data.hero_slides && Array.isArray(data.hero_slides) && data.hero_slides.length > 0) {
-          setHeroSlides(data.hero_slides)
-        }
-        if (data.galeria_mosaico && Array.isArray(data.galeria_mosaico) && data.galeria_mosaico.length > 0) {
-          setGaleriaItems(data.galeria_mosaico)
-        }
-        if (data.qr_pago && data.qr_pago.imagen) {
-          setQrPago(data.qr_pago.imagen)
-        }
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError') {
-          console.warn('No se pudo cargar la configuración web, usando fallbacks:', err.message)
-        }
-      })
-    return () => controller.abort()
+    let activo = true
+    cargarWebConfigDesdeSupabase().then(data => {
+      if (!activo || !data) return
+      if (data.hero_slides && Array.isArray(data.hero_slides) && data.hero_slides.length > 0) {
+        setHeroSlides(data.hero_slides)
+      }
+      if (data.galeria_mosaico && Array.isArray(data.galeria_mosaico) && data.galeria_mosaico.length > 0) {
+        setGaleriaItems(data.galeria_mosaico)
+      }
+      if (data.qr_pago && data.qr_pago.imagen) {
+        setQrPago(data.qr_pago.imagen)
+      }
+    }).catch(console.warn)
+    return () => { activo = false }
   }, [])
 
-  // Helper para clasificar categorías del menú
-  const clasificarCategoria = (categoria) => {
-    const cat = (categoria || '').toLowerCase().trim()
-    if (cat.includes('refresco') || cat.includes('cerveza') || cat.includes('bebida') || cat.includes('jugo') || cat.includes('agua') || cat.includes('trago') || cat.includes('refrescos') || cat.includes('cervezas')) {
-      return 'bebidas'
-    }
-    if (cat.includes('caldo') || cat.includes('sopa') || cat.includes('entrada') || cat.includes('acompañamiento') || cat.includes('piqueo') || cat.includes('guarnicion') || cat.includes('guarnición') || cat.includes('caldos') || cat.includes('entradas')) {
-      return 'entradas'
-    }
-    return 'principales' // Por defecto
-  }
-
-  // Cargar ELEMENTOS DEL MENÚ desde el backend
+  // Cargar ELEMENTOS DEL MENÚ en tiempo real desde Supabase (actualizados por el restaurante)
   useEffect(() => {
-    const controller = new AbortController()
-    fetch(`${API_URL}/api/menu`, { signal: controller.signal })
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar menú')
-        return res.json()
-      })
-      .then(data => {
-        if (Array.isArray(data)) {
-          setMenuItemsFlat(data)
-          if (data.length > 0) {
-            // Filtrar platos disponibles
-            const disponibles = data.filter(item => item.disponible !== false)
-            
-            const nuevoMenu = {
-              principales: [],
-              entradas: [],
-              bebidas: []
-            }
+    let activo = true
 
-            disponibles.forEach(item => {
-              const catClasificada = clasificarCategoria(item.categoria)
-              if (nuevoMenu[catClasificada]) {
-                nuevoMenu[catClasificada].push({
-                  id: item.id,
-                  nombre: item.nombre,
-                  precio_actual: item.precio_actual,
-                  descripcion: item.descripcion,
-                  imagen_base64: item.imagen_base64,
-                  url_imagen: item.url_imagen,
-                  ingredientes: item.ingredientes
-                })
-              }
-            })
+    const procesarItemsMenu = (data) => {
+      if (!Array.isArray(data) || data.length === 0) return
+      setMenuItemsFlat(data)
 
-            setMenu(nuevoMenu)
-          }
-        }
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError') {
-          console.warn('No se pudo cargar el menú desde la API, usando fallbacks:', err.message)
-        }
-        // POPULAR CON FALLBACK_MENU_ITEMS EN CASO DE FALLA
-        setMenuItemsFlat(FALLBACK_MENU_ITEMS)
-        const nuevoMenu = {
-          principales: [],
-          entradas: [],
-          bebidas: []
-        }
-        FALLBACK_MENU_ITEMS.forEach(item => {
-          const catClasificada = clasificarCategoria(item.categoria)
-          if (nuevoMenu[catClasificada]) {
-            nuevoMenu[catClasificada].push(item)
-          }
+      const disponibles = data.filter(item => item.disponible !== false)
+      const nuevoMenu = {
+        principales: [],
+        caldos: [],
+        refrescos: [],
+        cervezas: []
+      }
+
+      disponibles.forEach(item => {
+        const cat = clasificarCategoriaPlato(item.categoria)
+        const img = resolverImagenPlato(item, data)
+        nuevoMenu[cat].push({
+          ...item,
+          imagenResuelta: img
         })
-        setMenu(nuevoMenu)
       })
-    return () => controller.abort()
+
+      setMenu(nuevoMenu)
+    }
+
+    // Inicializar de inmediato con el catálogo de 43 platos de respaldo
+    procesarItemsMenu(FALLBACK_MENU_ITEMS)
+
+    // Sincronizar en vivo con Supabase / API
+    cargarMenuDesdeSupabase().then(data => {
+      if (activo && Array.isArray(data) && data.length > 0) {
+        procesarItemsMenu(data)
+      }
+    }).catch(console.warn)
+
+    return () => { activo = false }
   }, [])
 
   // Resolver ítems del mosaico vinculados con platos del menú
