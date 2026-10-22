@@ -6,6 +6,11 @@
 
 /* ── Variables — Identidad El Jardín (verde hoja + madera cálida) ── */
 :root {
+  /* Tipografía unificada */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-accent: 'Cormorant Garamond', Georgia, serif;
+
   /* Verde del logo (hojas) */
   --primary: #4a7c3f;
   --primary-dark: #2e5a25;
@@ -66,12 +71,26 @@ html {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg-dark);
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+/* Títulos y Encabezados Globales Unificados */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+p, span, label, button, input, textarea, select {
+  font-family: var(--font-sans);
 }
 
 img {

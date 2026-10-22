@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MapPin, Clock, Phone, MessageCircle, X, Search } from 'lucide-react'
+import { MapPin, Clock, Phone, MessageCircle, X, Search, Mail } from 'lucide-react'
 import './index.css'
 
 // ─── API URL (backend Railway) ────────────────────────────────────────────────
@@ -11,23 +11,32 @@ const API_URL = import.meta.env.VITE_API_URL
 const FALLBACK_PROMOS = [
   {
     tipo: 'imagen',
-    imagen_base64: '/musica.jpg',
-    badge: 'Viernes Folclórico',
-    titulo: 'Música en Vivo',
-    subtitulo: 'Disfruta de la mejor música andina y folklórica con destacados artistas nacionales.',
+    imagen_base64: '/hero-el-jardin.jpg',
+    badge: 'Jueves de Tradición',
+    titulo: '¡Jueves de Fideos Uchu y Música en Vivo!',
+    subtitulo: '¡Ven a probar el mejor Fideos Uchu de Cochabamba! Música folclórica en vivo, platos de antaño y la atención más cálida de nuestra gente.',
   },
   {
     tipo: 'imagen',
-    imagen_base64: '/promo2.jpg',
-    badge: 'Fin de Semana',
-    titulo: 'Gran Pampaku Valluno',
-    subtitulo: 'Asado tradicional cocido bajo tierra, servido en abundancia para compartir en familia.',
+    imagen_base64: '/musica.jpg',
+    badge: 'Peña Folclórica',
+    titulo: 'Viernes y Sábados de Peña en Vivo',
+    subtitulo: 'Disfruta de las mejores veladas de música folclórica, cuecas y huayños con destacados artistas en vivo en un ambiente cálido y familiar.',
+  },
+  {
+    tipo: 'imagen',
+    imagen_base64: '/pampaku.jpg',
+    badge: 'Tradición K\'ochala',
+    titulo: 'Gran Pampaku Valluno & Charque Criollo',
+    subtitulo: 'Especialistas en comida tradicional cochabambina: carnes tiernas bajo tierra, charque crujiente y abundante para compartir en familia.',
   }
 ]
 
 // ─── Imágenes para el Hero Slideshow ──────────────────────────────────────────
 const HERO_SLIDES = [
-  '/hero-bg.jpg'
+  '/hero-el-jardin.jpg',
+  '/hero-bg.jpg',
+  '/musica.jpg'
 ]
 
 // ─── Imágenes para la Galería Mosaico ─────────────────────────────────────────
@@ -47,6 +56,21 @@ const GALERIA_ITEMS = [
     detalles: 'Mix de carnes y tubérculos.'
   }
 ]
+
+// ─── Optimizador Universal de Imágenes (Cloudinary WebP + Auto-Format) ─────────
+export function optimizarUrlImagen(url, width = 800) {
+  if (!url || typeof url !== 'string') return url
+  if (url.startsWith('data:') || (url.startsWith('/') && !url.startsWith('//'))) return url
+
+  // Si es Cloudinary, inyectar transformaciones automáticas f_auto, q_auto y resize
+  if (url.includes('cloudinary.com') && url.includes('/image/upload/')) {
+    if (!url.includes('f_auto') && !url.includes('q_auto')) {
+      return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,w_${width},c_limit/`)
+    }
+  }
+
+  return url
+}
 
 // ─── Datos del Menú (Nuestra Carta) ───────────────────────────────────────────
 const MENU_CATEGORIAS = [
@@ -140,10 +164,10 @@ function FloatingNavbar() {
   return (
     <nav className={`floating-navbar ${!visible ? 'hidden-nav' : ''}`}>
       <div className="floating-navbar-brand" onClick={() => scrollToSection('inicio')} style={{ cursor: 'pointer' }}>
-        <div className="floating-navbar-logo">
-          <img src="/logo-hoja.png" alt="El Jardín" />
+        <div className="floating-navbar-logo" style={{ overflow: 'hidden', borderRadius: '50%', border: '1px solid var(--primary)' }}>
+          <img src="/logo-el-jardin.jpg" alt="El Jardín" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
-        <span className="floating-navbar-text">El Jardín</span>
+        <span className="floating-navbar-text" style={{ fontFamily: 'var(--font-brand)', fontSize: '1.3rem', letterSpacing: '0.02em' }}>El Jardín</span>
       </div>
       
       <div className="floating-navbar-menu">
@@ -220,7 +244,7 @@ function HeroGallery({ slides, onOpenReserva }) {
             key={i}
             className={`hero-slide ${esActual ? 'active' : ''} ${esPrevio ? 'prev' : ''}`}
             style={{
-              backgroundImage: `url('${src}')`,
+              backgroundImage: `url('${optimizarUrlImagen(src, 1400)}')`,
               opacity: esVisible ? 1 : 0,
               zIndex: esActual ? 2 : esPrevio ? 1 : 0,
             }}
@@ -233,14 +257,65 @@ function HeroGallery({ slides, onOpenReserva }) {
 
       {/* Contenido mínimo superpuesto */}
       <div className="hero-gallery-content">
-        <div className="hero-gallery-logo">
-          <img src="/logo-hoja.png" alt="El Jardín" />
+        <div className="hero-gallery-logo-wrap" style={{ marginBottom: '16px' }}>
+          <img 
+            src="/logo-el-jardin.jpg" 
+            alt="El Jardín Tradición K'ochala" 
+            style={{ 
+              width: '92px', 
+              height: '92px', 
+              borderRadius: '50%', 
+              objectFit: 'cover', 
+              border: '3px solid var(--primary)', 
+              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+              margin: '0 auto'
+            }} 
+          />
         </div>
-        <h1 className="hero-gallery-title">
-          Restaurante<br />
-          <em>El Jardín</em>
-        </h1>
-        <p className="hero-gallery-sub">Peña · Restaurant · Cochabamba, Bolivia</p>
+        <div className="hero-brand-header">
+          <span style={{ 
+            fontFamily: 'var(--font-tag)', 
+            letterSpacing: '0.28em', 
+            textTransform: 'uppercase', 
+            fontSize: '0.85rem', 
+            color: 'var(--primary-light)', 
+            display: 'block', 
+            marginBottom: '4px',
+            fontWeight: 700
+          }}>
+            Tradición K'ochala
+          </span>
+          <h1 className="hero-gallery-title brand-title-script" style={{ 
+            fontFamily: 'var(--font-brand)', 
+            fontSize: 'clamp(3.4rem, 8vw, 6rem)', 
+            lineHeight: 1.05, 
+            letterSpacing: '0.02em',
+            margin: '0 0 6px 0',
+            textShadow: '0 4px 30px rgba(0,0,0,0.8)'
+          }}>
+            El Jardín
+          </h1>
+          <p className="hero-gallery-sub brand-subtitle-tracked" style={{ 
+            fontFamily: 'var(--font-tag)', 
+            letterSpacing: '0.35em', 
+            fontSize: 'clamp(0.9rem, 1.8vw, 1.2rem)', 
+            textTransform: 'uppercase',
+            color: '#ffffff',
+            fontWeight: 800,
+            marginBottom: '10px'
+          }}>
+            Peña · Restaurant
+          </p>
+          <p style={{
+            fontSize: '0.98rem',
+            color: 'rgba(237, 232, 220, 0.9)',
+            maxWidth: '560px',
+            margin: '0 auto 28px',
+            lineHeight: 1.6
+          }}>
+            Especialistas en comida tradicional cochabambina · Jueves de Fideos Uchu y música folclórica en vivo
+          </p>
+        </div>
         
         <div className="hero-gallery-actions">
           <button 
@@ -333,7 +408,7 @@ function GaleriaMosaico({ items }) {
               key={i}
               style={{ transitionDelay: `${i * 0.08}s` }}
             >
-              <img src={item.src} alt={item.nombre} loading="lazy" />
+              <img src={optimizarUrlImagen(item.src, 900)} alt={item.nombre} loading="lazy" decoding="async" />
               <div className="mosaic-overlay">
                 <div className="mosaic-overlay-content">
                   <span className="mosaic-nombre">{item.nombre}</span>
@@ -402,7 +477,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
             </div>
           ) : (
             platos.map((item, index) => {
-              const imageSrc = item.imagen_base64 || item.url_imagen
+              const imageSrc = optimizarUrlImagen(item.imagen_base64 || item.url_imagen, 800)
               const formattedPrice = typeof item.precio_actual === 'number'
                 ? `Bs. ${item.precio_actual}`
                 : item.precio || 'Consultar'
@@ -412,7 +487,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
                 <div className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} key={index}>
                   {imageSrc && (
                     <div className="menu-item-image">
-                      <img src={imageSrc} alt={item.nombre} loading="lazy" />
+                      <img src={imageSrc} alt={item.nombre} loading="lazy" decoding="async" />
                     </div>
                   )}
                   <div className="menu-item-content">
@@ -431,7 +506,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
                     
                     {/* Selector de cantidad interactivo en la carta */}
                     <div className="menu-item-action" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(74,124,63,0.12)', paddingTop: '12px' }}>
-                      <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem', fontFamily: 'monospace' }}>{formattedPrice}</span>
+                      <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem' }}>{formattedPrice}</span>
                       
                       {cant > 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -493,7 +568,7 @@ function Lightbox({ promo, onClose }) {
 
   if (!promo) return null
 
-  const mediaSrc = promo.imagen_base64 || promo.imagen_url || promo.datos_base64
+  const mediaSrc = optimizarUrlImagen(promo.imagen_base64 || promo.imagen_url || promo.datos_base64, 1200)
 
   return (
     <div className="lightbox-backdrop" onClick={onClose}>
@@ -505,7 +580,7 @@ function Lightbox({ promo, onClose }) {
           {promo.tipo === 'video' ? (
             <video src={mediaSrc} controls autoPlay playsInline loop className="lightbox-img" />
           ) : (
-            <img src={mediaSrc} alt={promo.titulo || 'Promoción'} className="lightbox-img" />
+            <img src={mediaSrc} alt={promo.titulo || 'Promoción'} className="lightbox-img" decoding="async" />
           )}
         </div>
         <div className="lightbox-body">
@@ -514,7 +589,7 @@ function Lightbox({ promo, onClose }) {
           {promo.subtitulo && <p className="lightbox-sub">{promo.subtitulo}</p>}
           <div className="lightbox-actions">
             <a
-              href={`https://wa.me/59169420202?text=${encodeURIComponent('Hola El Jardín! Me interesa el evento: ' + (promo.titulo || ''))}`}
+              href={`https://wa.me/59178418801?text=${encodeURIComponent('Hola El Jardín! Me interesa el evento: ' + (promo.titulo || ''))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-gold"
@@ -580,7 +655,7 @@ function AvisosDestacados({ promosList, loading }) {
         ) : (
           <div className="avisos-grid" ref={gridRef}>
             {promos.map((p, i) => {
-              const mediaSrc = p.imagen_base64 || p.imagen_url || p.datos_base64
+              const mediaSrc = optimizarUrlImagen(p.imagen_base64 || p.imagen_url || p.datos_base64, 900)
               return (
                 <div
                   className="aviso-card"
@@ -592,7 +667,7 @@ function AvisosDestacados({ promosList, loading }) {
                     {p.tipo === 'video' ? (
                       <video src={mediaSrc} muted loop playsInline />
                     ) : (
-                      <img src={mediaSrc} alt={p.titulo || 'Promoción'} loading="lazy" />
+                      <img src={mediaSrc} alt={p.titulo || 'Promoción'} loading="lazy" decoding="async" />
                     )}
                   </div>
                   <div className="aviso-card-overlay">
@@ -658,7 +733,7 @@ function UbicacionContacto({ onOpenReserva }) {
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors block text-sm"
                 >
-                  Final, Av. Melchor Perez de Olguin,<br />Cochabamba, Bolivia
+                  Av. Final Melchor Pérez sud 3er puente mano derecha sobre el canal de agua,<br />Cochabamba, Bolivia
                 </a>
                 <a 
                   href="https://maps.app.goo.gl/S5uYzZB4ZRNTUoV16"
@@ -679,7 +754,7 @@ function UbicacionContacto({ onOpenReserva }) {
               <div>
                 <h4>Horario de Atención</h4>
                 <p style={{ fontSize: '13px', lineHeight: '1.4' }}>
-                  <strong>Jueves:</strong> 11:00 — 23:00 hs<br />
+                  <strong>Jueves de Fideos Uchu:</strong> 11:00 — 23:00 hs<br />
                   <strong>Sábado y Domingo:</strong> 12:00 — 23:00 hs
                 </p>
               </div>
@@ -690,8 +765,8 @@ function UbicacionContacto({ onOpenReserva }) {
                 <Phone size={22} />
               </div>
               <div>
-                <h4>Teléfono</h4>
-                <p><a href="tel:+59169420202">+591 69420202</a></p>
+                <h4>Teléfono / WhatsApp</h4>
+                <p><a href="tel:+59178418801">+591 78418801</a></p>
               </div>
             </div>
 
@@ -700,8 +775,18 @@ function UbicacionContacto({ onOpenReserva }) {
                 <MessageCircle size={22} />
               </div>
               <div>
-                <h4>WhatsApp</h4>
-                <p>Escríbenos para reservas y pedidos</p>
+                <h4>Reservas y Pedidos</h4>
+                <p><a href="https://wa.me/59178418801" target="_blank" rel="noopener noreferrer">WhatsApp directo (+591 78418801)</a></p>
+              </div>
+            </div>
+
+            <div className="ubicacion-info-item">
+              <div className="ubicacion-info-icon" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308' }}>
+                <Mail size={22} />
+              </div>
+              <div>
+                <h4>Correo Electrónico</h4>
+                <p><a href="mailto:eljardintradicionkochala@gmail.com">eljardintradicionkochala@gmail.com</a></p>
               </div>
             </div>
           </div>
@@ -737,9 +822,9 @@ function Footer({ onOpenReserva }) {
     <footer className="footer">
       <div className="footer-inner">
         <div className="footer-brand">
-          <img src="/logo-hoja.png" alt="El Jardín" className="footer-logo-img" />
+          <img src="/logo-el-jardin.jpg" alt="El Jardín Tradición K'ochala" className="footer-logo-img" style={{ borderRadius: '50%', objectFit: 'cover' }} />
           <h3 className="footer-title">El Jardín</h3>
-          <p className="footer-tagline">Peña · Restaurant · Tradición</p>
+          <p className="footer-tagline">Tradición K'ochala · Peña Restaurant</p>
         </div>
 
         <div className="footer-links">
@@ -751,8 +836,9 @@ function Footer({ onOpenReserva }) {
         </div>
 
         <div className="footer-info">
-          <p>Av. Melchor Perez de Olguin, Cochabamba, Bolivia</p>
-          <p>Telf: +591 69420202 · Jueves: 11:00 a 23:00, Sáb y Dom: 12:00 a 23:00</p>
+          <p>Av. Final Melchor Pérez sud 3er puente mano derecha sobre el canal de agua, Cochabamba, Bolivia</p>
+          <p>Telf / WhatsApp: +591 78418801 · Correo: eljardintradicionkochala@gmail.com</p>
+          <p>Jueves: 11:00 a 23:00 · Sábado y Domingo: 12:00 a 23:00</p>
         </div>
 
         <div className="footer-social">
@@ -1064,12 +1150,12 @@ ${itemStrings.length > 0 ? itemStrings.join('\n') : '_Sin platos pre-seleccionad
 
 ${totalEstimado > 0 ? `*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)} _(más costo de delivery según zona)_` : ''}
 
-*💳 Pago Completo enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 69420202
+*💳 Pago Completo enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
 ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar el pedido'}
 
 ¡Muchas gracias! Esperamos su confirmación.`
     } else {
-      mensaje = `*🪴 RESERVA DE MESA — Restaurante El Jardín*
+      mensaje = `*🪴 RESERVA DE MESA — El Jardín Tradición K'ochala*
 
 *👤 Detalles de la Reserva:*
 - *Nombre:* ${nombre}
@@ -1082,7 +1168,7 @@ ${itemStrings.join('\n')}
 
 *💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
 
-*💳 Pago Anticipado enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 69420202
+*💳 Pago Anticipado enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
 ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante de pago para confirmar la reserva'}
 
 ¡Muchas gracias! Nos vemos pronto. 🌿`
@@ -1090,7 +1176,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
 
     resetFormulario()
 
-    const url = `https://wa.me/59169420202?text=${encodeURIComponent(mensaje)}`
+    const url = `https://wa.me/59178418801?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
     onVolver()
   }
@@ -1310,7 +1396,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                   </div>
                 ) : (
                   itemsFiltrados.map((item) => {
-                    const imageSrc = item.imagen_base64 || item.url_imagen
+                    const imageSrc = optimizarUrlImagen(item.imagen_base64 || item.url_imagen, 600)
                     const formattedPrice = typeof item.precio_actual === 'number'
                       ? `Bs. ${item.precio_actual}`
                       : item.precio || 'Consultar'
@@ -1320,7 +1406,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto' : '⏳ Favor enviar comprobante
                       <div className="pedidos-dish-card" key={item.id}>
                         {imageSrc && (
                           <div className="pedidos-dish-img-container" onClick={() => setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}>
-                            <img src={imageSrc} alt={item.nombre} loading="lazy" />
+                            <img src={imageSrc} alt={item.nombre} loading="lazy" decoding="async" />
                           </div>
                         )}
                         <div className="pedidos-dish-info">
