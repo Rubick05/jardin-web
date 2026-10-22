@@ -9,7 +9,7 @@
 export const SUPABASE_URL = 'https://ucnobrafrlvwdzonbhlc.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjbm9icmFmcmx2d2R6b25iaGxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDYyNDUsImV4cCI6MjA5NzM4MjI0NX0.-rYM2aTmDV3ohzUUg8uI4OSmoetFGJy4wEw_yrnSe04';
 
-export const API_URL = import.meta.env.VITE_API_URL
+export const API_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
   ? import.meta.env.VITE_API_URL.replace('/api', '').replace(/\/$/, '')
   : 'https://restaurante-pelusa.vercel.app';
 
