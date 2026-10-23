@@ -2711,14 +2711,113 @@ html, body {
   }
 
   .qty-btn {
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
   }
 
   .add-to-cart-btn {
-    padding: 5px 12px !important;
-    font-size: 11px !important;
+    padding: 7px 14px !important;
+    font-size: 11.5px !important;
+    border-radius: 8px !important;
+  }
+}
+
+/* ── BARRA FIJA INFERIOR DEL PASO 2 (Sticky Bottom Cart Bar) ── */
+.pedidos-sticky-cart-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(18, 22, 16, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1.5px solid var(--gold);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pedidos-sticky-cart-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pedidos-sticky-confirm-btn {
+  padding: 12px 24px !important;
+  font-size: 0.85rem !important;
+  border-radius: 100px !important;
+  font-weight: bold !important;
+  box-shadow: 0 4px 16px rgba(200, 144, 58, 0.4) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .pedidos-dish-card {
+    min-height: 96px !important;
+    height: auto !important;
+    padding: 8px !important;
+    gap: 10px !important;
+  }
+  .pedidos-dish-img-container {
+    width: 82px !important;
+    height: 82px !important;
+  }
+  .pedidos-dish-desc {
+    -webkit-line-clamp: 2 !important;
+  }
+  .pedidos-sticky-cart-bar {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .pedidos-sticky-confirm-btn {
+    padding: 10px 18px !important;
+    font-size: 0.78rem !important;
+  }
+}
+
+/* ── DRAWER / MODAL DE CANASTA INTERACTIVA ── */
+.cart-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.cart-drawer-content {
+  width: 100%;
+  max-width: 580px;
+  background: var(--bg-mid);
+  border: 1.5px solid var(--border-light);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUpSheet 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 
