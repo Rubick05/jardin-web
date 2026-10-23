@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 import './index.css'
 import ModalInstalacionApp from './components/ModalInstalacionApp.jsx'
+import ModalConfirmarPedidoYPago from './components/ModalConfirmarPedidoYPago.jsx'
+import ModalSeguimientoPedido from './components/ModalSeguimientoPedido.jsx'
 import {
   cargarMenuDesdeSupabase,
   cargarPromocionesDesdeSupabase,
@@ -149,7 +151,7 @@ function WhatsAppIcon({ size = 24 }) {
 //  FLOATING NAVBAR — Premium glassmorphism pill navigation
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function FloatingNavbar({ onOpenInstalacion }) {
+function FloatingNavbar({ onOpenInstalacion, pedidoActivo, onOpenSeguimiento }) {
   const [visible, setVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [activeSection, setActiveSection] = useState('inicio')
@@ -244,6 +246,21 @@ function FloatingNavbar({ onOpenInstalacion }) {
           onClick={() => scrollToSection('contacto')}
         >
           Contacto
+        </a>
+        <a 
+          className="floating-navbar-link"
+          onClick={() => onOpenSeguimiento && onOpenSeguimiento()}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+          title="Rastrear pedido en tiempo real"
+        >
+          {pedidoActivo ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4ade80', fontWeight: 'bold' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+              Estado Pedido
+            </span>
+          ) : (
+            '🔍 Rastrear'
+          )}
         </a>
       </div>
     </nav>
@@ -1268,6 +1285,8 @@ function PaginaPedidosYReservas({
   const [imagenPreview, setImagenPreview] = useState(null)
   const [enviandoPedido, setEnviandoPedido] = useState(false)
   const [modalPedidoExitoso, setModalPedidoExitoso] = useState(null)
+  const [mostrarModalConfirmacionPago, setMostrarModalConfirmacionPago] = useState(false)
+  const [seguimientoModalId, setSeguimientoModalId] = useState(null)
   const inputPagoRef = useRef(null)
   const leafletMapRef = useRef(null)
   const leafletMarkerRef = useRef(null)
@@ -1313,6 +1332,129 @@ function PaginaPedidosYReservas({
 
   const incrementar = (id) => {
     setPedido(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+  }
+
+  // Al seleccionar cualquier plato, se agrega e inmediatamente se abre el modal de confirmación y pago
+  const handleAgregarPlato = (id) => {
+    incrementar(id)
+    setMostrarModalConfirmacionPago(true)
+  }
+
+  const handleConfirmarPedidoYRedirigir = async (montoAnticipoCalculado, saldoPendienteCalculado) => {
+    if (!nombre.trim()) { alert('Por favor ingresa tu nombre completo.'); return }
+    if (tipoEntrega === 'local') {
+      if (!fecha) { alert('Por favor selecciona la fecha de reserva.'); return }
+      if (!hora) { alert('Por favor selecciona la hora de llegada.'); return }
+    }
+    if (tipoEntrega === 'delivery') {
+      if (!direccion.trim()) { alert('Por favor ingresa la dirección de entrega.'); return }
+      if (!zona) { alert('Por favor selecciona tu zona o barrio.'); return }
+    }
+
+    setEnviandoPedido(true)
+    let codigoPedido = null
+    let idGenerado = null
+    try {
+      const res = await crearPedidoOnline({
+        tipoEntrega,
+        nombre,
+        telefono,
+        direccion,
+        zona,
+        coords,
+        referencia,
+        notasAdicionales,
+        personas,
+        fecha,
+        hora,
+        itemsSeleccionados,
+        totalEstimado,
+        deposito: montoAnticipoCalculado,
+        imagenPago
+      })
+      if (res?.id) {
+        idGenerado = res.id
+        codigoPedido = res.numero_ficha ? `FICHA-${res.numero_ficha}` : res.id.slice(-6).toUpperCase()
+      }
+    } catch (err) {
+      console.warn('Error al registrar pedido en backend:', err)
+    } finally {
+      setEnviandoPedido(false)
+    }
+
+    const codFinal = codigoPedido || ('DEL-' + Math.floor(1000 + Math.random() * 9000))
+    const targetId = idGenerado || codFinal
+
+    // Guardar en localStorage para no perder el pedido
+    try {
+      const infoActiva = {
+        id: targetId,
+        codigo: codFinal,
+        tipoEntrega,
+        nombre,
+        telefono,
+        fechaRegistro: new Date().toISOString(),
+        total: totalEstimado,
+        anticipo: montoAnticipoCalculado,
+        saldo: saldoPendienteCalculado
+      }
+      localStorage.setItem('jardin_pedido_activo', JSON.stringify(infoActiva))
+    } catch (e) {}
+
+    const linkSeguimiento = `${window.location.origin}/?rastrear=${targetId}`
+    const itemStrings = itemsSeleccionados.map(
+      item => `- *${item.cantidad}x* ${item.nombre} (Bs. ${(item.precio_actual * item.cantidad).toFixed(0)})`
+    )
+
+    let mensaje
+    if (tipoEntrega === 'delivery') {
+      mensaje = `*🛵 PEDIDO A DOMICILIO — Restaurante El Jardín*
+*🔖 Código:* #${codFinal}
+*👤 Cliente:* ${nombre} ${telefono ? `(${telefono})` : ''}
+*📍 Dirección:* ${direccion} (${zona})
+*🗺️ GPS:* https://www.google.com/maps?q=${coords.lat},${coords.lng}
+${referencia ? `*Referencia:* ${referencia}\n` : ''}
+*🍽️ Platos Solicitados:*
+${itemStrings.join('\n')}
+
+*💰 Total Platos (100%):* Bs. ${totalEstimado.toFixed(0)}
+*🛵 Costo de Envío en Moto:* _Se coordinará y enviará a este WhatsApp lo más pronto posible_
+*💳 Pago Realizado:* Bs. ${montoAnticipoCalculado.toFixed(0)} vía QR
+${imagenPago ? '✅ Comprobante adjunto en chat' : '⏳ Comprobante pendiente'}
+
+*🔍 Ver Estado de Preparación en Vivo:*
+${linkSeguimiento}
+
+¡Muchas gracias! Esperamos su confirmación.`
+    } else {
+      const fechaText = fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : ''
+      mensaje = `*🪴 RESERVA DE MESA — El Jardín Tradición K'ochala*
+*🔖 Código:* #${codFinal}
+*👤 Detalles de la Reserva:*
+- *Nombre:* ${nombre}
+- *Personas:* ${personas} personas
+- *Fecha:* ${fechaText}
+- *Hora:* ${hora} hs
+${telefono ? `- *Teléfono:* ${telefono}` : ''}
+
+*🍽️ Pedido Anticipado:*
+${itemStrings.join('\n')}
+
+*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)}
+*💳 Anticipo Pagado (50%):* Bs. ${montoAnticipoCalculado.toFixed(0)}
+*⚠️ Saldo en mesa (50%):* Bs. ${saldoPendienteCalculado.toFixed(0)}
+${imagenPago ? '✅ Comprobante adjunto en chat' : '⏳ Comprobante pendiente'}
+
+*🔍 Ver Estado de Reserva en Vivo:*
+${linkSeguimiento}
+
+¡Nos vemos en El Jardín! 🌿`
+    }
+
+    window.open(`https://wa.me/59178418801?text=${encodeURIComponent(mensaje)}`, '_blank')
+
+    setMostrarModalConfirmacionPago(false)
+    setSeguimientoModalId(targetId)
   }
 
   const decrementar = (id) => {
@@ -2279,7 +2421,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                   </button>
                   <button
                     type="button"
-                    onClick={irSiguientePaso}
+                    onClick={() => setMostrarModalConfirmacionPago(true)}
                     className="btn btn-gold"
                     style={{
                       padding: '9px 18px',
@@ -2417,7 +2559,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => incrementar(item.id)}
+                                  onClick={() => handleAgregarPlato(item.id)}
                                   className="qty-btn"
                                   aria-label="Sumar uno"
                                 >
@@ -2427,7 +2569,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => incrementar(item.id)}
+                                onClick={() => handleAgregarPlato(item.id)}
                                 className="btn btn-gold add-to-cart-btn"
                               >
                                 + Agregar
@@ -2454,7 +2596,7 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               </button>
               <button
                 type="button"
-                onClick={irSiguientePaso}
+                onClick={() => setMostrarModalConfirmacionPago(true)}
                 className="btn btn-gold"
                 style={{ flex: 2, padding: '13px', borderRadius: '12px', fontWeight: 'bold', fontSize: '13.5px' }}
               >
@@ -2906,6 +3048,45 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
           </div>
         </div>
       )}
+
+      {/* MODAL INMEDIATO DE CONFIRMACIÓN Y PAGO DE ORDEN (Reglas 50% Local / 100% Delivery) */}
+      {mostrarModalConfirmacionPago && itemsSeleccionados.length > 0 && (
+        <ModalConfirmarPedidoYPago
+          tipoEntrega={tipoEntrega}
+          nombre={nombre}
+          telefono={telefono}
+          direccion={direccion}
+          zona={zona}
+          fecha={fecha}
+          hora={hora}
+          personas={personas}
+          referencia={referencia}
+          notasAdicionales={notasAdicionales}
+          itemsSeleccionados={itemsSeleccionados}
+          totalEstimado={totalEstimado}
+          pedido={pedido}
+          setPedido={setPedido}
+          qrPagoRestaurante={qrPagoRestaurante || qrUrl}
+          imagenPago={imagenPago}
+          setImagenPago={setImagenPago}
+          onConfirmarPedido={handleConfirmarPedidoYRedirigir}
+          enviandoPedido={enviandoPedido}
+          onCerrar={() => setMostrarModalConfirmacionPago(false)}
+          onSeguirComprando={() => setMostrarModalConfirmacionPago(false)}
+        />
+      )}
+
+      {/* MODAL DE SEGUIMIENTO EN VIVO PARA ESTE PEDIDO */}
+      {seguimientoModalId && (
+        <ModalSeguimientoPedido
+          pedidoId={seguimientoModalId}
+          onCerrar={() => {
+            setSeguimientoModalId(null)
+            resetFormulario()
+            onVolver()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -3194,6 +3375,31 @@ export default function App() {
   const [coords, setCoords] = useState({ lat: -17.3895, lng: -66.1568 })
   const [imagenPago, setImagenPago] = useState(null)
   const [modalInstalacionAbierto, setModalInstalacionAbierto] = useState(false)
+  const [rastreoPedidoId, setRastreoPedidoId] = useState(null)
+  const [pedidoActivo, setPedidoActivo] = useState(null)
+  const [modalSeguimientoAbierto, setModalSeguimientoAbierto] = useState(false)
+
+  // Cargar pedido activo y detectar parámetro de URL (?rastrear=ID o ?pedido=ID)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const rId = params.get('rastrear') || params.get('pedido')
+      if (rId) {
+        setRastreoPedidoId(rId)
+        setModalSeguimientoAbierto(true)
+      }
+    } catch (e) {}
+
+    try {
+      const guardado = localStorage.getItem('jardin_pedido_activo')
+      if (guardado) {
+        const parsed = JSON.parse(guardado)
+        if (parsed && (parsed.id || parsed.codigo)) {
+          setPedidoActivo(parsed)
+        }
+      }
+    } catch (e) {}
+  }, [])
 
   const steps = tipoEntrega === 'delivery'
     ? ['datos', 'tipo', 'ubicacion', 'menu', 'pago']
@@ -3404,7 +3610,14 @@ export default function App() {
 
   return (
     <>
-      <FloatingNavbar />
+      <FloatingNavbar 
+        onOpenInstalacion={() => setModalInstalacionAbierto(true)}
+        pedidoActivo={pedidoActivo}
+        onOpenSeguimiento={(id) => {
+          setRastreoPedidoId(id || pedidoActivo?.id || null);
+          setModalSeguimientoAbierto(true);
+        }}
+      />
       <HeroGallery 
         slides={heroSlides} 
         onOpenReserva={(modo = 'local') => { 
@@ -3474,6 +3687,49 @@ export default function App() {
             Confirmar Pedido ➔
           </button>
         </div>
+      )}
+
+      {/* Botón flotante accesible de Pedido Activo */}
+      {pedidoActivo && !modalSeguimientoAbierto && vistaActiva !== 'pedidos' && (
+        <button
+          type="button"
+          onClick={() => {
+            setRastreoPedidoId(pedidoActivo.id)
+            setModalSeguimientoAbierto(true)
+          }}
+          style={{
+            position: 'fixed',
+            bottom: totalEstimado > 0 ? '145px' : '90px',
+            left: '16px',
+            zIndex: 9995,
+            background: 'linear-gradient(135deg, rgba(16,28,12,0.95), rgba(8,14,6,0.95))',
+            border: '1.5px solid var(--gold)',
+            color: '#fff',
+            borderRadius: '100px',
+            padding: '10px 16px',
+            fontSize: '12.5px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.85), 0 0 16px rgba(200,144,58,0.3)',
+            cursor: 'pointer'
+          }}
+        >
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', flexShrink: 0 }} />
+          <span>Tu Pedido (#{pedidoActivo.codigo || pedidoActivo.id?.slice(-5)}) · Ver Estado</span>
+        </button>
+      )}
+
+      {/* Modal Global de Seguimiento en Vivo */}
+      {modalSeguimientoAbierto && (
+        <ModalSeguimientoPedido
+          pedidoId={rastreoPedidoId}
+          onCerrar={() => {
+            setModalSeguimientoAbierto(false)
+            setRastreoPedidoId(null)
+          }}
+        />
       )}
     </>
   )

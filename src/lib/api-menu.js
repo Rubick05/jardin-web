@@ -735,3 +735,78 @@ export async function crearPedidoOnline({
 
   return { ok: false, id: pedidoId };
 }
+
+/**
+ * Consulta el estado actualizado de un pedido en tiempo real (por ID o código)
+ */
+export async function consultarEstadoPedido(pedidoId) {
+  if (!pedidoId) return null;
+  const target = String(pedidoId).trim().replace(/^#/, '');
+
+  // 1. Supabase REST Directo (Alta disponibilidad)
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
+    const filter = isUuid
+      ? `id=eq.${target}`
+      : `or=(id.ilike.*${target}*,numero_ficha.eq.${target})`;
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/pedidos?${filter}&select=*,items:items_pedido(*)&limit=1`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows.length > 0) {
+        return rows[0];
+      }
+    }
+  } catch (e) {
+    console.warn('Error consultando estado en Supabase:', e);
+  }
+
+  // 2. Fallback a Servidor API
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos/${target}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (e) {
+    console.warn('Error consultando estado en API Server:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Busca pedidos recientes asociados a un número de teléfono de WhatsApp
+ */
+export async function buscarPedidosPorTelefono(telefono) {
+  if (!telefono) return [];
+  const cleanPhone = telefono.replace(/\D/g, '');
+  if (cleanPhone.length < 6) return [];
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/pedidos?datos_facturacion->>cliente_telefono=ilike.*${cleanPhone}*&select=*,items:items_pedido(*)&order=creado_en.desc&limit=5`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        signal: AbortSignal.timeout(5000)
+      }
+    );
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn('Error buscando pedidos por teléfono:', e);
+  }
+  return [];
+}
