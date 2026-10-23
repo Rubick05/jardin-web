@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import './index.css'
 import ModalInstalacionApp from './components/ModalInstalacionApp.jsx'
-import ModalConfirmarPedidoYPago from './components/ModalConfirmarPedidoYPago.jsx'
+import ModalCheckoutLanding from './components/ModalCheckoutLanding.jsx'
 import ModalSeguimientoPedido from './components/ModalSeguimientoPedido.jsx'
 import {
   cargarMenuDesdeSupabase,
@@ -3378,6 +3378,55 @@ export default function App() {
   const [rastreoPedidoId, setRastreoPedidoId] = useState(null)
   const [pedidoActivo, setPedidoActivo] = useState(null)
   const [modalSeguimientoAbierto, setModalSeguimientoAbierto] = useState(false)
+  const [modalCheckoutAbierto, setModalCheckoutAbierto] = useState(false)
+  const [modalidadCheckout, setModalidadCheckout] = useState('delivery')
+  const [enviandoPedido, setEnviandoPedido] = useState(false)
+
+  const handleIniciarPedidoOFlujo = (modo = 'delivery') => {
+    setModalidadCheckout(modo)
+    setTipoEntrega(modo)
+    if (totalEstimado > 0) {
+      setModalCheckoutAbierto(true)
+    } else {
+      const el = document.getElementById('menu')
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  const handleConfirmarPedidoCheckout = async (datosPayload) => {
+    try {
+      setEnviandoPedido(true)
+      const res = await crearPedidoOnline(datosPayload)
+      if (res && res.ok) {
+        const id = res.id
+        const codigo = res.pedido?.numero_ficha 
+          ? `DEL-${res.pedido.numero_ficha}` 
+          : (id ? id.slice(0, 8).toUpperCase() : 'DEL-101')
+
+        const nuevoPedidoActivo = {
+          id,
+          codigo,
+          fecha: Date.now(),
+          cliente: datosPayload.nombre,
+          total: datosPayload.totalEstimado
+        }
+
+        setPedidoActivo(nuevoPedidoActivo)
+        try {
+          localStorage.setItem('jardin_pedido_activo', JSON.stringify(nuevoPedidoActivo))
+        } catch {}
+
+        setPedido({})
+        return { ok: true, id, codigo }
+      }
+      return { ok: false }
+    } catch (err) {
+      console.error('Error al confirmar pedido:', err)
+      return { ok: false }
+    } finally {
+      setEnviandoPedido(false)
+    }
+  }
 
   // Cargar pedido activo y detectar parámetro de URL (?rastrear=ID o ?pedido=ID)
   useEffect(() => {
@@ -3566,48 +3615,6 @@ export default function App() {
     return item
   })
 
-  if (vistaActiva === 'pedidos') {
-    return (
-      <PaginaPedidosYReservas
-        menuItems={menuItemsFlat}
-        qrPagoRestaurante={qrPago}
-        tipoEntrega={tipoEntrega}
-        setTipoEntrega={setTipoEntrega}
-        paso={paso}
-        setPaso={setPaso}
-        nombre={nombre}
-        setNombre={setNombre}
-        telefono={telefono}
-        setTelefono={setTelefono}
-        personas={personas}
-        setPersonas={setPersonas}
-        fecha={fecha}
-        setFecha={setFecha}
-        hora={hora}
-        setHora={setHora}
-        direccion={direccion}
-        setDireccion={setDireccion}
-        zona={zona}
-        setZona={setZona}
-        referencia={referencia}
-        setReferencia={setReferencia}
-        notasAdicionales={notasAdicionales}
-        setNotasAdicionales={setNotasAdicionales}
-        pedido={pedido}
-        setPedido={setPedido}
-        coords={coords}
-        setCoords={setCoords}
-        imagenPago={imagenPago}
-        setImagenPago={setImagenPago}
-        totalEstimado={totalEstimado}
-        deposito={deposito}
-        qrUrl={qrUrl}
-        resetFormulario={resetFormulario}
-        onVolver={() => setVistaActiva('inicio')}
-      />
-    )
-  }
-
   return (
     <>
       <FloatingNavbar 
@@ -3620,29 +3627,14 @@ export default function App() {
       />
       <HeroGallery 
         slides={heroSlides} 
-        onOpenReserva={(modo = 'local') => { 
-          setTipoEntrega(modo); 
-          setPrefillReserva(null); 
-          setPaso(1);
-          setVistaActiva('pedidos'); 
-        }} 
+        onOpenReserva={(modo = 'local') => handleIniciarPedidoOFlujo(modo)} 
       />
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} pedido={pedido} setPedido={setPedido} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
-      <UbicacionContacto onOpenReserva={(modo = 'local') => { 
-        setTipoEntrega(modo); 
-        setPrefillReserva(null); 
-        setPaso(1);
-        setVistaActiva('pedidos'); 
-      }} />
+      <UbicacionContacto onOpenReserva={(modo = 'local') => handleIniciarPedidoOFlujo(modo)} />
       <Footer 
-        onOpenReserva={(modo = 'local') => { 
-          setTipoEntrega(modo); 
-          setPrefillReserva(null); 
-          setPaso(1);
-          setVistaActiva('pedidos'); 
-        }}
+        onOpenReserva={(modo = 'local') => handleIniciarPedidoOFlujo(modo)}
         onOpenInstalacion={() => setModalInstalacionAbierto(true)}
       />
       <ModalInstalacionApp 
@@ -3650,27 +3642,25 @@ export default function App() {
         onClose={() => setModalInstalacionAbierto(false)} 
       />
       <WhatsAppFAB 
-        onOpenReserva={(modo = 'local') => { 
-          setTipoEntrega(modo); 
-          setPrefillReserva(null); 
-          setPaso(1);
-          setVistaActiva('pedidos'); 
-        }} 
+        onOpenReserva={(modo = 'local') => handleIniciarPedidoOFlujo(modo)} 
         className={totalEstimado > 0 ? 'cart-active' : ''}
       />
       <ChatbotFlotante 
         onPreReserva={(data) => {
-          setPrefillReserva(data);
-          setPaso(1);
-          setVistaActiva('pedidos');
+          handleIniciarPedidoOFlujo(data?.tipo || 'local');
         }}
         menuItems={menuItemsFlat}
       />
 
-
-      {totalEstimado > 0 && vistaActiva !== 'pedidos' && (
+      {/* Barra fija inferior de carrito cuando hay platos escogidos */}
+      {totalEstimado > 0 && (
         <div className="floating-cart-bar">
-          <div className="floating-cart-info">
+          <div 
+            className="floating-cart-info" 
+            onClick={() => setModalCheckoutAbierto(true)} 
+            style={{ cursor: 'pointer' }}
+            title="Ver platos seleccionados y continuar"
+          >
             <span className="floating-cart-count">🛒 {itemsSeleccionados.reduce((acc, i) => acc + i.cantidad, 0)} platos</span>
             <span className="floating-cart-divider">|</span>
             <span className="floating-cart-total">Bs {totalEstimado.toFixed(0)}</span>
@@ -3678,19 +3668,15 @@ export default function App() {
           <button
             type="button"
             className="btn btn-gold floating-cart-btn"
-            onClick={() => {
-              setPrefillReserva(null);
-              setPaso(1);
-              setVistaActiva('pedidos');
-            }}
+            onClick={() => setModalCheckoutAbierto(true)}
           >
-            Confirmar Pedido ➔
+            Continuar Pedido ➔
           </button>
         </div>
       )}
 
       {/* Botón flotante accesible de Pedido Activo */}
-      {pedidoActivo && !modalSeguimientoAbierto && vistaActiva !== 'pedidos' && (
+      {pedidoActivo && !modalSeguimientoAbierto && !modalCheckoutAbierto && (
         <button
           type="button"
           onClick={() => {
@@ -3721,7 +3707,27 @@ export default function App() {
         </button>
       )}
 
-      {/* Modal Global de Seguimiento en Vivo */}
+      {/* Modal de Checkout directo desde la Landing Page */}
+      {modalCheckoutAbierto && (
+        <ModalCheckoutLanding
+          isOpen={modalCheckoutAbierto}
+          onClose={() => setModalCheckoutAbierto(false)}
+          pedido={pedido}
+          setPedido={setPedido}
+          menuItems={menuItemsFlat}
+          qrPagoRestaurante={qrPago || qrUrl}
+          onConfirmarPedido={handleConfirmarPedidoCheckout}
+          enviandoPedido={enviandoPedido}
+          onAbrirSeguimiento={(id) => {
+            setModalCheckoutAbierto(false)
+            setRastreoPedidoId(id)
+            setModalSeguimientoAbierto(true)
+          }}
+          modalidadInicial={modalidadCheckout}
+        />
+      )}
+
+      {/* Modal Global de Seguimiento en Vivo con Escáner y Subida de QR */}
       {modalSeguimientoAbierto && (
         <ModalSeguimientoPedido
           pedidoId={rastreoPedidoId}
