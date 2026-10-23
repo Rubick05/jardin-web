@@ -6,6 +6,17 @@ import {
 } from 'lucide-react'
 import './index.css'
 import ModalInstalacionApp from './components/ModalInstalacionApp.jsx'
+import {
+  cargarMenuDesdeSupabase,
+  cargarPromocionesDesdeSupabase,
+  cargarWebConfigDesdeSupabase,
+  resolverImagenPlato,
+  optimizarUrlImagen,
+  CATEGORIAS_CARTA,
+  clasificarCategoriaPlato,
+  FALLBACK_MENU_ITEMS,
+  API_URL
+} from './lib/api-menu.js'
 
 // ─── Verificación en Tiempo Real de Horario de El Jardín ───────────────────────
 function obtenerEstadoHorarioRestaurante() {
@@ -62,18 +73,6 @@ function obtenerEstadoHorarioRestaurante() {
 
   return { abierto, mensaje }
 }
-
-import {
-  cargarMenuDesdeSupabase,
-  cargarPromocionesDesdeSupabase,
-  cargarWebConfigDesdeSupabase,
-  resolverImagenPlato,
-  optimizarUrlImagen,
-  CATEGORIAS_CARTA,
-  clasificarCategoriaPlato,
-  FALLBACK_MENU_ITEMS,
-  API_URL
-} from './lib/api-menu.js'
 
 // ─── FALLBACK DATA (cuando la API no responde) ────────────────────────────────
 const FALLBACK_PROMOS = [
