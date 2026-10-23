@@ -178,7 +178,7 @@ function FloatingNavbar({ onOpenInstalacion }) {
 
   // Track active section on scroll
   useEffect(() => {
-    const sections = ['inicio', 'cocina', 'menu', 'promociones', 'contacto']
+    const sections = ['inicio', 'menu', 'promociones', 'contacto']
     const observerCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -228,12 +228,6 @@ function FloatingNavbar({ onOpenInstalacion }) {
           Inicio
         </a>
         <a 
-          className={`floating-navbar-link ${activeSection === 'cocina' ? 'active' : ''}`}
-          onClick={() => scrollToSection('cocina')}
-        >
-          Cocina
-        </a>
-        <a 
           className={`floating-navbar-link ${activeSection === 'menu' ? 'active' : ''}`}
           onClick={() => scrollToSection('menu')}
         >
@@ -251,27 +245,6 @@ function FloatingNavbar({ onOpenInstalacion }) {
         >
           Contacto
         </a>
-        <button
-          type="button"
-          onClick={onOpenInstalacion}
-          className="floating-navbar-link"
-          style={{
-            background: 'rgba(200, 144, 58, 0.2)',
-            border: '1px solid rgba(200, 144, 58, 0.45)',
-            color: 'var(--gold-light)',
-            fontWeight: 'bold',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            borderRadius: '100px',
-            padding: '4px 10px',
-            cursor: 'pointer'
-          }}
-          title="Descargar APK o Instalar PWA"
-        >
-          <Smartphone size={13} />
-          <span>App</span>
-        </button>
       </div>
     </nav>
   )
@@ -399,24 +372,21 @@ function HeroGallery({ slides, onOpenReserva, onOpenInstalacion }) {
             Ver el Menú
           </button>
           <button 
-            onClick={onOpenReserva} 
+            onClick={() => onOpenReserva('local')} 
             className="btn btn-outline"
           >
             Reservar Mesa
           </button>
           <button 
             type="button"
-            onClick={onOpenInstalacion} 
+            onClick={() => onOpenReserva('delivery')} 
             className="btn btn-outline"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
               borderColor: 'rgba(200, 144, 58, 0.5)',
               color: 'var(--gold-light)'
             }}
           >
-            <Smartphone size={16} /> Instalar App / APK
+            🛵 Pedir a Domicilio
           </button>
         </div>
       </div>
@@ -1180,6 +1150,28 @@ function Footer({ onOpenReserva, onOpenInstalacion }) {
           <a onClick={() => scrollToSection('contacto')}>Contacto</a>
         </div>
 
+        {/* Botón Descargar App / APK Oficial en el Footer */}
+        <div style={{ margin: '18px 0', display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={onOpenInstalacion}
+            className="btn btn-gold"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              borderRadius: '100px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              boxShadow: '0 4px 18px rgba(200, 144, 58, 0.35)',
+              cursor: 'pointer'
+            }}
+          >
+            <Smartphone size={16} /> Descargar App Móvil / APK Oficial
+          </button>
+        </div>
+
         {/* Información y Dirección del Restaurante */}
         <div className="footer-info">
           <p>Av. Final Melchor Pérez sud 3er puente mano derecha sobre el canal de agua, Cochabamba, Bolivia</p>
@@ -1379,9 +1371,28 @@ function PaginaPedidosYReservas({
     const L = window.L
     if (!L) return
 
+    if (leafletMapRef.current) {
+      try {
+        leafletMapRef.current.remove()
+      } catch (e) {
+        console.warn('Leaflet cleanup:', e)
+      }
+      leafletMapRef.current = null
+    }
+
     const container = L.DomUtil.get('map-selection')
     if (container) {
       container._leaflet_id = null
+    }
+
+    // Configurar iconos oficiales de Leaflet sin errores 404
+    if (L.Icon && L.Icon.Default) {
+      delete L.Icon.Default.prototype._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      })
     }
 
     // Configuración para que el mapa no bloquee el scroll vertical en móviles
@@ -1417,7 +1428,7 @@ function PaginaPedidosYReservas({
     })
   }
 
-  // Obtener ubicación GPS actual en 1 toque
+  // Obtener ubicación GPS actual en 1 toque (con reintento de precisión estándar si timeout)
   const obtenerUbicacionActual = () => {
     if (!navigator.geolocation) {
       alert('Tu navegador o dispositivo no soporta geolocalización GPS.')
@@ -1425,25 +1436,36 @@ function PaginaPedidosYReservas({
     }
 
     setObteniendoGps(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude
-        const lng = pos.coords.longitude
-        setCoords({ lat, lng })
-        setObteniendoGps(false)
 
-        if (leafletMapRef.current && leafletMarkerRef.current) {
-          leafletMarkerRef.current.setLatLng([lat, lng])
-          leafletMapRef.current.setView([lat, lng], 16)
-        }
-        await reverseGeocode(lat, lng)
+    const aplicarCoords = async (lat, lng) => {
+      setCoords({ lat, lng })
+      setObteniendoGps(false)
+      if (leafletMapRef.current && leafletMarkerRef.current) {
+        leafletMarkerRef.current.setLatLng([lat, lng])
+        leafletMapRef.current.setView([lat, lng], 16)
+      }
+      await reverseGeocode(lat, lng)
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        aplicarCoords(pos.coords.latitude, pos.coords.longitude)
       },
       (err) => {
-        setObteniendoGps(false)
-        console.warn('GPS Error:', err)
-        alert('No pudimos acceder a tu ubicación GPS. Por favor activa el GPS de tu celular o selecciona el punto en el mapa.')
+        // Fallback inmediato con precisión normal para interiores/red celular
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            aplicarCoords(pos.coords.latitude, pos.coords.longitude)
+          },
+          (err2) => {
+            setObteniendoGps(false)
+            console.warn('GPS Error:', err2)
+            alert('No pudimos acceder a tu GPS automáticamente. Por favor toca tu ubicación en el mapa interactivo o ingresa tu dirección.')
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        )
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     )
   }
 
@@ -1656,9 +1678,13 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
             )}
           </div>
 
-          {/* Stepper horizontal */}
+          {/* Stepper horizontal interactivo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '500px', margin: '8px auto 0', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => { setPaso(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '4px' }}
+            >
               <span style={{
                 width: '24px', height: '24px', borderRadius: '50%', background: paso >= 1 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
                 color: paso >= 1 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
@@ -1666,23 +1692,47 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               <span style={{ fontSize: '12px', color: paso === 1 ? 'var(--gold)' : '#888', fontWeight: paso === 1 ? 'bold' : 'normal' }}>
                 {tipoEntrega === 'delivery' ? 'Datos Envío' : 'Datos Reserva'}
               </span>
-            </div>
+            </button>
+
             <div style={{ flex: 1, height: '1.5px', background: paso >= 2 ? 'var(--gold)' : 'rgba(255,255,255,0.1)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!nombre.trim()) { alert('Por favor ingresa tu nombre en el paso 1.'); return; }
+                setPaso(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '4px' }}
+            >
               <span style={{
                 width: '24px', height: '24px', borderRadius: '50%', background: paso >= 2 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
                 color: paso >= 2 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
               }}>2</span>
               <span style={{ fontSize: '12px', color: paso === 2 ? 'var(--gold)' : '#888', fontWeight: paso === 2 ? 'bold' : 'normal' }}>Menú</span>
-            </div>
+            </button>
+
             <div style={{ flex: 1, height: '1.5px', background: paso >= 3 ? 'var(--gold)' : 'rgba(255,255,255,0.1)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!nombre.trim()) { alert('Por favor completa tus datos en el paso 1.'); return; }
+                if (tipoEntrega === 'delivery' && itemsSeleccionados.length === 0) {
+                  alert('Por favor selecciona al menos un plato para delivery en el paso 2.');
+                  return;
+                }
+                setPaso(3);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '4px' }}
+            >
               <span style={{
                 width: '24px', height: '24px', borderRadius: '50%', background: paso >= 3 ? 'var(--gold)' : 'rgba(255,255,255,0.1)',
                 color: paso >= 3 ? '#000' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
               }}>3</span>
               <span style={{ fontSize: '12px', color: paso === 3 ? 'var(--gold)' : '#888', fontWeight: paso === 3 ? 'bold' : 'normal' }}>Pago</span>
-            </div>
+            </button>
           </div>
         </div>
       </header>
@@ -1978,22 +2028,133 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={irSiguientePaso}
-              className="btn btn-gold"
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                marginTop: '10px',
-                boxShadow: '0 4px 16px rgba(200, 144, 58, 0.3)'
-              }}
-            >
-              Continuar a la Selección de Platos ➔
-            </button>
+            {/* Si ya hay platos seleccionados, mostrar resumen rápido de orden y botón directo a pago */}
+            {totalCantidad > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                <div style={{
+                  background: 'rgba(200, 144, 58, 0.1)',
+                  border: '1.5px solid rgba(200, 144, 58, 0.35)',
+                  borderRadius: '14px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
+                      🛒 Tu pedido actual: {totalCantidad} {totalCantidad === 1 ? 'plato' : 'platos'}
+                    </div>
+                    <div style={{ fontSize: '13.5px', color: 'var(--gold-light)', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      Total: Bs. {totalEstimado.toFixed(0)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaso(2)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '11.5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✏️ Modificar Platos
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!nombre.trim()) { alert('Por favor ingresa tu nombre completo.'); return }
+                    if (tipoEntrega === 'local') {
+                      if (!fecha) { alert('Por favor selecciona la fecha de reserva.'); return }
+                      if (!hora) { alert('Por favor selecciona la hora de llegada.'); return }
+                    }
+                    if (tipoEntrega === 'delivery') {
+                      if (!direccion.trim()) { alert('Por favor ingresa la dirección de entrega.'); return }
+                      if (!zona) { alert('Por favor selecciona tu zona o barrio.'); return }
+                    }
+                    setPaso(3)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="btn btn-gold"
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 18px rgba(200, 144, 58, 0.35)'
+                  }}
+                >
+                  Continuar al Resumen y Pago (Bs. {totalEstimado.toFixed(0)}) ➔
+                </button>
+              </div>
+            ) : tipoEntrega === 'delivery' ? (
+              <button
+                type="button"
+                onClick={irSiguientePaso}
+                className="btn btn-gold"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  marginTop: '10px',
+                  boxShadow: '0 4px 16px rgba(200, 144, 58, 0.3)'
+                }}
+              >
+                Elegir Platos para tu Pedido ➔
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={irSiguientePaso}
+                  className="btn btn-gold"
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 16px rgba(200, 144, 58, 0.3)'
+                  }}
+                >
+                  Elegir Platos del Menú (Opcional) ➔
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!nombre.trim()) { alert('Por favor ingresa tu nombre completo.'); return }
+                    if (!fecha) { alert('Por favor selecciona la fecha de reserva.'); return }
+                    if (!hora) { alert('Por favor selecciona la hora de llegada.'); return }
+                    setPaso(3)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#ddd',
+                    fontSize: '12.5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Confirmar Reserva de Mesa sin Platos Previos ➔
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -2031,6 +2192,42 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                 ✏️ Editar Datos
               </button>
             </div>
+
+            {/* Botón superior de confirmación rápida (para evitar bajar hasta abajo en móviles) */}
+            {totalCantidad > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                background: 'rgba(200, 144, 58, 0.12)',
+                border: '1.5px solid var(--gold)',
+                borderRadius: '14px',
+                padding: '12px 16px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#ccc' }}>Orden actual:</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>
+                    {totalCantidad} {totalCantidad === 1 ? 'plato' : 'platos'} · <span style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={irSiguientePaso}
+                  className="btn btn-gold"
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '100px',
+                    fontSize: '12.5px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 14px rgba(200, 144, 58, 0.35)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Confirmar y Pagar ➔
+                </button>
+              </div>
+            )}
 
             {/* Explorador de Platos */}
             <section className="pedidos-browser">
@@ -3038,18 +3235,32 @@ export default function App() {
 
   return (
     <>
-      <FloatingNavbar onOpenInstalacion={() => setModalInstalacionAbierto(true)} />
+      <FloatingNavbar />
       <HeroGallery 
         slides={heroSlides} 
-        onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} 
-        onOpenInstalacion={() => setModalInstalacionAbierto(true)}
+        onOpenReserva={(modo = 'local') => { 
+          setTipoEntrega(modo); 
+          setPrefillReserva(null); 
+          setPaso(1);
+          setVistaActiva('pedidos'); 
+        }} 
       />
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} pedido={pedido} setPedido={setPedido} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
-      <UbicacionContacto onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} />
+      <UbicacionContacto onOpenReserva={(modo = 'local') => { 
+        setTipoEntrega(modo); 
+        setPrefillReserva(null); 
+        setPaso(1);
+        setVistaActiva('pedidos'); 
+      }} />
       <Footer 
-        onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }}
+        onOpenReserva={(modo = 'local') => { 
+          setTipoEntrega(modo); 
+          setPrefillReserva(null); 
+          setPaso(1);
+          setVistaActiva('pedidos'); 
+        }}
         onOpenInstalacion={() => setModalInstalacionAbierto(true)}
       />
       <ModalInstalacionApp 
@@ -3057,12 +3268,18 @@ export default function App() {
         onClose={() => setModalInstalacionAbierto(false)} 
       />
       <WhatsAppFAB 
-        onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} 
+        onOpenReserva={(modo = 'local') => { 
+          setTipoEntrega(modo); 
+          setPrefillReserva(null); 
+          setPaso(1);
+          setVistaActiva('pedidos'); 
+        }} 
         className={totalEstimado > 0 ? 'cart-active' : ''}
       />
       <ChatbotFlotante 
         onPreReserva={(data) => {
           setPrefillReserva(data);
+          setPaso(1);
           setVistaActiva('pedidos');
         }}
         menuItems={menuItemsFlat}
@@ -3081,6 +3298,7 @@ export default function App() {
             className="btn btn-gold floating-cart-btn"
             onClick={() => {
               setPrefillReserva(null);
+              setPaso(1);
               setVistaActiva('pedidos');
             }}
           >
