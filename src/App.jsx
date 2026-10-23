@@ -15,7 +15,8 @@ import {
   CATEGORIAS_CARTA,
   clasificarCategoriaPlato,
   FALLBACK_MENU_ITEMS,
-  API_URL
+  API_URL,
+  crearPedidoOnline
 } from './lib/api-menu.js'
 
 // ─── Verificación en Tiempo Real de Horario de El Jardín ───────────────────────
@@ -1265,6 +1266,8 @@ function PaginaPedidosYReservas({
   const [obteniendoGps, setObteniendoGps] = useState(false)
   const [mostrarModalCanasta, setMostrarModalCanasta] = useState(false)
   const [imagenPreview, setImagenPreview] = useState(null)
+  const [enviandoPedido, setEnviandoPedido] = useState(false)
+  const [modalPedidoExitoso, setModalPedidoExitoso] = useState(null)
   const inputPagoRef = useRef(null)
   const leafletMapRef = useRef(null)
   const leafletMarkerRef = useRef(null)
@@ -1539,7 +1542,7 @@ function PaginaPedidosYReservas({
     }
   }
 
-  const enviarWhatsApp = () => {
+  const enviarWhatsApp = async () => {
     if (!nombre.trim()) { alert('Por favor ingresa tu nombre completo.'); return }
     
     if (tipoEntrega === 'local') {
@@ -1552,6 +1555,36 @@ function PaginaPedidosYReservas({
       if (!zona) { alert('Por favor selecciona tu zona o barrio.'); return }
     }
 
+    setEnviandoPedido(true)
+
+    let codigoPedido = null
+    try {
+      const res = await crearPedidoOnline({
+        tipoEntrega,
+        nombre,
+        telefono,
+        direccion,
+        zona,
+        coords,
+        referencia,
+        notasAdicionales,
+        personas,
+        fecha,
+        hora,
+        itemsSeleccionados,
+        totalEstimado,
+        deposito,
+        imagenPago
+      })
+      if (res?.id) {
+        codigoPedido = res.id.slice(-6).toUpperCase()
+      }
+    } catch (err) {
+      console.warn('Error al registrar pedido en base de datos:', err)
+    } finally {
+      setEnviandoPedido(false)
+    }
+
     const itemStrings = itemsSeleccionados.map(
       item => `- *${item.cantidad}x* ${item.nombre} (Bs. ${(item.precio_actual * item.cantidad).toFixed(0)})`
     )
@@ -1559,7 +1592,7 @@ function PaginaPedidosYReservas({
     let mensaje
     if (tipoEntrega === 'delivery') {
       mensaje = `*🛵 PEDIDO A DOMICILIO — Restaurante El Jardín*
-
+${codigoPedido ? `*🔖 Código de Pedido en Sistema:* #${codigoPedido}\n` : ''}
 *👤 Datos del Cliente:*
 - *Nombre:* ${nombre}
 ${telefono ? `- *Teléfono / WhatsApp:* ${telefono}` : ''}
@@ -1577,14 +1610,15 @@ ${itemStrings.length > 0 ? itemStrings.join('\n') : '_Sin platos seleccionados_'
 
 ${totalEstimado > 0 ? `*💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)} _(más costo de envío según zona)_` : ''}
 
-*💳 Pago Completo enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
-${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Favor enviar comprobante de pago para comenzar a preparar el pedido'}
+*💳 Pago reportado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
+*⚠️ Saldo a pagar al repartidor:* Bs. ${Math.max(0, totalEstimado - deposito).toFixed(0)}
+${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Favor confirmar recepción del comprobante'}
 
 ¡Muchas gracias! Esperamos su confirmación.`
     } else {
       const fechaText = fecha ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' }) : ''
       mensaje = `*🪴 RESERVA DE MESA — El Jardín Tradición K'ochala*
-
+${codigoPedido ? `*🔖 Código de Reserva:* #${codigoPedido}\n` : ''}
 *👤 Detalles de la Reserva:*
 - *Nombre:* ${nombre}
 - *Personas:* ${personas} personas
@@ -1597,17 +1631,23 @@ ${itemStrings.join('\n')}
 
 *💰 Total Estimado:* Bs. ${totalEstimado.toFixed(0)}` : '_Sin pedido previo (ordenaremos en mesa)_'}
 
-*💳 Pago Anticipado enviado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
-${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Favor enviar comprobante de pago para confirmar la reserva de mesa'}
+*💳 Pago Anticipado:* Bs. ${deposito.toFixed(0)} vía Tigo Money al +591 78418801
+*⚠️ Saldo restante al consumir en mesa:* Bs. ${Math.max(0, totalEstimado - deposito).toFixed(0)}
+${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Favor confirmar la reserva'}
 
 ¡Muchas gracias! Nos vemos en El Jardín. 🌿`
     }
 
-    resetFormulario()
-
     const url = `https://wa.me/59178418801?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
-    onVolver()
+
+    setModalPedidoExitoso({
+      codigo: codigoPedido || 'WEB-OK',
+      tipoEntrega,
+      total: totalEstimado,
+      anticipo: deposito,
+      saldo: Math.max(0, totalEstimado - deposito)
+    })
   }
 
   const irSiguientePaso = () => {
@@ -2192,44 +2232,72 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               </button>
             </div>
 
-            {/* Botón superior de confirmación rápida (para evitar bajar hasta abajo en móviles) */}
+            {/* Barra superior de confirmación rápida (para evitar bajar hasta abajo en móviles) */}
             {totalCantidad > 0 && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '10px',
-                background: 'rgba(200, 144, 58, 0.12)',
+                gap: '12px',
+                background: 'linear-gradient(135deg, rgba(200, 144, 58, 0.16) 0%, rgba(16, 28, 12, 0.9) 100%)',
                 border: '1.5px solid var(--gold)',
-                borderRadius: '14px',
-                padding: '12px 16px'
+                borderRadius: '16px',
+                padding: '12px 18px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
               }}>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#ccc' }}>Orden actual:</div>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>
-                    {totalCantidad} {totalCantidad === 1 ? 'plato' : 'platos'} · <span style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '50%',
+                    background: 'var(--gold)', color: '#000',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                  }}>
+                    <ShoppingBag size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#ccc' }}>Orden actual:</div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#fff' }}>
+                      {totalCantidad} {totalCantidad === 1 ? 'plato' : 'platos'} · <span style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>Bs. {totalEstimado.toFixed(0)}</span>
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={irSiguientePaso}
-                  className="btn btn-gold"
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '100px',
-                    fontSize: '12.5px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 14px rgba(200, 144, 58, 0.35)',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  Confirmar y Pagar ➔
-                </button>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarModalCanasta(true)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#fff',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ver Canasta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={irSiguientePaso}
+                    className="btn btn-gold"
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '100px',
+                      fontSize: '12.5px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 14px rgba(200, 144, 58, 0.4)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Confirmar y Pagar ➔
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Explorador de Platos */}
-            <section className="pedidos-browser">
+            <section className="pedidos-browser" style={{ paddingBottom: '90px' }}>
               {/* Barra de Búsqueda */}
               <div className="pedidos-search-bar">
                 <Search className="pedidos-search-icon" size={18} />
@@ -2269,10 +2337,10 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                 ))}
               </div>
 
-              {/* Grilla de Platos Responsiva Móvil */}
+              {/* Grilla de Platos Idéntica a la Landing Page (Sin Cortes) */}
               <div className="pedidos-dishes-grid">
                 {itemsFiltrados.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 16px', color: '#888', fontSize: '14px', background: 'var(--bg-mid)', borderRadius: '14px' }}>
+                  <div style={{ textAlign: 'center', padding: '40px 16px', color: '#888', fontSize: '14px', background: 'var(--bg-mid)', borderRadius: '14px', gridColumn: '1 / -1' }}>
                     No se encontraron platos con "{buscarPlato}".
                   </div>
                 ) : (
@@ -2284,34 +2352,57 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
                     const cant = pedido[item.id] || 0
 
                     return (
-                      <div className="pedidos-dish-card" key={item.id}>
+                      <div 
+                        className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} 
+                        key={item.id}
+                        style={{ position: 'relative' }}
+                      >
                         {imageSrc && (
                           <div
-                            className="pedidos-dish-img-container"
+                            className="menu-item-image"
                             onClick={() => setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}
                             title="Tocar para ver foto en grande"
+                            style={{ cursor: 'pointer' }}
                           >
                             <img src={imageSrc} alt={item.nombre} loading="lazy" decoding="async" />
+                            <div className="menu-item-image-overlay" style={{
+                              position: 'absolute',
+                              inset: 0,
+                              background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)',
+                              display: 'flex',
+                              alignItems: 'flex-end',
+                              justifyContent: 'flex-end',
+                              padding: '5px'
+                            }}>
+                              <span style={{ background: 'rgba(0,0,0,0.6)', padding: '2px 5px', borderRadius: '4px', fontSize: '9.5px', color: '#fff', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Eye size={10} /> Ver
+                              </span>
+                            </div>
                           </div>
                         )}
-                        <div className="pedidos-dish-info">
-                          <div className="pedidos-dish-details">
-                            <h4
-                              className="pedidos-dish-name"
-                              onClick={() => imageSrc && setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}
-                            >
-                              {item.nombre}
-                            </h4>
-                            <p className="pedidos-dish-desc">{item.descripcion || 'Especialidad tradicional de la casa.'}</p>
+                        <div className="menu-item-content">
+                          <div>
+                            <div className="menu-item-header" style={{ marginBottom: '4px' }}>
+                              <h3
+                                className="menu-item-name"
+                                onClick={() => imageSrc && setImagenPreview({ src: imageSrc, nombre: item.nombre, desc: item.descripcion, precio: item.precio_actual })}
+                                style={{ cursor: 'pointer', fontSize: '15px' }}
+                              >
+                                {item.nombre}
+                              </h3>
+                            </div>
+                            <p className="menu-item-desc">{item.descripcion || 'Especialidad tradicional de la casa.'}</p>
                           </div>
                           
-                          <div className="pedidos-dish-action">
-                            <span className="pedidos-dish-price">{formattedPrice}</span>
+                          <div className="menu-item-action" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(74,124,63,0.15)', paddingTop: '8px', gap: '8px' }}>
+                            <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem', fontFamily: 'monospace' }}>
+                              {formattedPrice}
+                            </span>
                             {cant > 0 ? (
                               <div style={{
                                 display: 'flex', alignItems: 'center', gap: '6px',
                                 background: 'rgba(0,0,0,0.5)', padding: '3px 6px',
-                                borderRadius: '8px', border: '1px solid rgba(200, 144, 58, 0.4)'
+                                borderRadius: '8px', border: '1px solid var(--gold)'
                               }}>
                                 <button
                                   type="button"
@@ -2521,11 +2612,22 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               </button>
               <button
                 type="button"
+                disabled={enviandoPedido}
                 onClick={enviarWhatsApp}
                 className="btn btn-gold"
-                style={{ flex: 2, padding: '13px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '13px' }}
+                style={{
+                  flex: 2,
+                  padding: '13px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontSize: '13px',
+                  opacity: enviandoPedido ? 0.7 : 1,
+                  cursor: enviandoPedido ? 'wait' : 'pointer'
+                }}
               >
-                Pedir por WhatsApp ➔
+                {enviandoPedido ? '⏳ Enviando a Cocina...' : 'Enviar Pedido a Cocina & WhatsApp ➔'}
               </button>
             </div>
           </div>
@@ -2733,6 +2835,74 @@ ${imagenPago ? '✅ Comprobante de pago adjunto en esta conversación' : '⏳ Fa
               <span style={{ fontSize: '12px', color: '#888' }}>Precio:</span>
               <span style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 'bold' }}>Bs. {Number(imagenPreview.precio).toFixed(0)}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Pedido Enviado con Éxito a Cocina */}
+      {modalPedidoExitoso && (
+        <div
+          className="cart-drawer-backdrop"
+          style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+        >
+          <div
+            style={{
+              maxWidth: '440px',
+              width: '100%',
+              background: '#0d150b',
+              border: '2px solid var(--gold)',
+              borderRadius: '20px',
+              padding: '24px 20px',
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(200,144,58,0.2)'
+            }}
+          >
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '2px solid #22c55e', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <CheckCircle2 size={32} />
+            </div>
+
+            <h3 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: 'bold', color: '#fff', fontFamily: 'Playfair Display, serif' }}>
+              ¡Pedido Enviado a Cocina!
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#a8b89a', lineHeight: 1.5 }}>
+              Tu orden ha sido registrada en el sistema de cocina de <strong>El Jardín</strong>.
+            </p>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '14px', marginBottom: '18px', textAlign: 'left', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888' }}>Código Oficial:</span>
+                <span style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '15px' }}>#{modalPedidoExitoso.codigo}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888' }}>Total de la Orden:</span>
+                <span style={{ fontWeight: 'bold', color: '#fff' }}>Bs. {modalPedidoExitoso.total.toFixed(0)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888' }}>Anticipo pagado:</span>
+                <span style={{ color: '#22c55e', fontWeight: 'bold' }}>Bs. {modalPedidoExitoso.anticipo.toFixed(0)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>Falta pagar en entrega:</span>
+                <span style={{ color: '#f59e0b', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '14px' }}>Bs. {modalPedidoExitoso.saldo.toFixed(0)}</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '11.5px', color: '#888', margin: '0 0 18px', lineHeight: 1.4 }}>
+              💬 También se ha abierto tu WhatsApp con el detalle completo para coordinar con el restaurante.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setModalPedidoExitoso(null)
+                resetFormulario()
+                onVolver()
+              }}
+              className="btn btn-gold"
+              style={{ width: '100%', padding: '13px', borderRadius: '12px', fontSize: '13.5px', fontWeight: 'bold' }}
+            >
+              Entendido / Volver al Inicio ✓
+            </button>
           </div>
         </div>
       )}

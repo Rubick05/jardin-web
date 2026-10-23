@@ -584,3 +584,154 @@ export const FALLBACK_MENU_ITEMS = [
     descripcion: "Combo de trago tradicional 37 Lenguas con acompañamientos."
   }
 ];
+
+// ─── Registro Directo de Pedidos en Tablero Cocina / Supabase ─────────────────
+export async function crearPedidoOnline({
+  tipoEntrega,
+  nombre,
+  telefono,
+  direccion,
+  zona,
+  coords,
+  referencia,
+  notasAdicionales,
+  personas,
+  fecha,
+  hora,
+  itemsSeleccionados,
+  totalEstimado,
+  deposito,
+  imagenPago
+}) {
+  const pedidoId = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+  const saldoPendiente = Math.max(0, (totalEstimado || 0) - (deposito || 0));
+
+  const datosFacturacion = {
+    origen: tipoEntrega === 'delivery' ? 'web_delivery' : 'web_reserva',
+    tipo_entrega: tipoEntrega || 'local',
+    cliente_nombre: (nombre || 'Cliente').trim(),
+    cliente_telefono: (telefono || '').trim(),
+    direccion: tipoEntrega === 'delivery' ? (direccion || '').trim() : 'Consumo en Salón',
+    zona: tipoEntrega === 'delivery' ? (zona || '') : '',
+    coordenadas: coords || null,
+    google_maps_url: coords?.lat && coords?.lng ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}` : '',
+    referencia: referencia || '',
+    notas_adicionales: notasAdicionales || '',
+    personas: personas || 2,
+    fecha_reserva: fecha || null,
+    hora_reserva: hora || null,
+    total_estimado: Number(totalEstimado || 0),
+    monto_anticipo: Number(deposito || 0),
+    saldo_pendiente: Number(saldoPendiente),
+    pago_confirmado: false,
+    comprobante_url: imagenPago || null,
+    creado_en: new Date().toISOString()
+  };
+
+  const itemsFormatted = (itemsSeleccionados || []).map(it => {
+    let cat = 'Plato Fuerte';
+    const rawCat = (it.categoria || '').toLowerCase();
+    if (rawCat.includes('caldo') || rawCat.includes('sopa')) cat = 'Caldos';
+    else if (rawCat.includes('refresco') || rawCat.includes('jugo')) cat = 'Refrescos';
+    else if (rawCat.includes('cerveza') || rawCat.includes('trago')) cat = 'Cervezas';
+
+    return {
+      id_elemento_menu: it.id || null,
+      nombre_item: it.nombre,
+      categoria: cat,
+      cantidad: it.cantidad || 1,
+      precio_unitario: Number(it.precio_actual || it.precio || 0),
+      subtotal: Number(it.precio_actual || it.precio || 0) * (it.cantidad || 1),
+      estado_item: 'pendiente',
+      instrucciones: notasAdicionales || null
+    };
+  });
+
+  const bodyData = {
+    id: pedidoId,
+    id_restaurante: 'demo-tenant',
+    id_mesero: 'web-online',
+    numero_letrero: 0,
+    subtotal: Number(totalEstimado || 0),
+    total: Number(totalEstimado || 0),
+    estado: 'pendiente',
+    datos_facturacion: datosFacturacion,
+    notas: `[${tipoEntrega === 'delivery' ? '🛵 DELIVERY' : '🪴 RESERVA'}] ${nombre} (${telefono || 'S/N'}). ${tipoEntrega === 'delivery' ? `Dir: ${direccion}, ${zona}` : `${personas} pers.`}. Pagado: Bs. ${deposito}. Falta pagar: Bs. ${saldoPendiente}.`,
+    items: itemsFormatted
+  };
+
+  // Intento 1: Servidor API
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      console.log('✅ Pedido registrado exitosamente en el servidor:', data);
+      return { ok: true, id: pedidoId, pedido: data.pedido };
+    }
+  } catch (err) {
+    console.warn('Servidor no disponible en API_URL, usando inserción directa a Supabase...', err);
+  }
+
+  // Intento 2: Supabase REST Directo
+  try {
+    const resPedido = await fetch(`${SUPABASE_URL}/rest/v1/pedidos`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify({
+        id: pedidoId,
+        id_restaurante: 'demo-tenant',
+        id_mesero: 'web-online',
+        numero_ficha: Math.floor(Date.now() / 1000) % 1000,
+        numero_letrero: 0,
+        estado: 'pendiente',
+        subtotal: Number(totalEstimado || 0),
+        total: Number(totalEstimado || 0),
+        datos_facturacion: datosFacturacion,
+        notas: bodyData.notas
+      }),
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (resPedido.ok) {
+      if (itemsFormatted.length > 0) {
+        const itemsPayload = itemsFormatted.map(it => ({
+          id_pedido: pedidoId,
+          id_elemento_menu: it.id_elemento_menu,
+          nombre_item: it.nombre_item,
+          categoria: it.categoria,
+          cantidad: it.cantidad,
+          precio_unitario: it.precio_unitario,
+          subtotal: it.subtotal,
+          estado_item: 'pendiente',
+          instrucciones: it.instrucciones
+        }));
+
+        await fetch(`${SUPABASE_URL}/rest/v1/items_pedido`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(itemsPayload)
+        });
+      }
+      console.log('✅ Pedido insertado directamente en Supabase REST:', pedidoId);
+      return { ok: true, id: pedidoId };
+    }
+  } catch (err2) {
+    console.error('Error al insertar pedido en Supabase:', err2);
+  }
+
+  return { ok: false, id: pedidoId };
+}
