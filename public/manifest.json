@@ -1,0 +1,25 @@
+{
+  "name": "El Jardín — Tradición K'ochala",
+  "short_name": "El Jardín",
+  "description": "El mejor restaurante peña tradicional de Cochabamba. Fideos Uchu, Pampaku, Charque y música folclórica en vivo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c06",
+  "theme_color": "#080c06",
+  "orientation": "portrait",
+  "categories": ["food", "restaurant", "shopping"],
+  "icons": [
+    {
+      "src": "/logo-hoja.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-el-jardin.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

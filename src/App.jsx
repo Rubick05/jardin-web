@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MapPin, Clock, Phone, MessageCircle, X, Search, Mail } from 'lucide-react'
+import { MapPin, Clock, Phone, MessageCircle, X, Search, Mail, Smartphone, Download, Sparkles, Eye, Info } from 'lucide-react'
 import './index.css'
+import ModalInstalacionApp from './components/ModalInstalacionApp.jsx'
 import {
   cargarMenuDesdeSupabase,
   cargarPromocionesDesdeSupabase,
@@ -87,7 +88,7 @@ function WhatsAppIcon({ size = 24 }) {
 //  FLOATING NAVBAR — Premium glassmorphism pill navigation
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function FloatingNavbar() {
+function FloatingNavbar({ onOpenInstalacion }) {
   const [visible, setVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [activeSection, setActiveSection] = useState('inicio')
@@ -189,6 +190,27 @@ function FloatingNavbar() {
         >
           Contacto
         </a>
+        <button
+          type="button"
+          onClick={onOpenInstalacion}
+          className="floating-navbar-link"
+          style={{
+            background: 'rgba(200, 144, 58, 0.2)',
+            border: '1px solid rgba(200, 144, 58, 0.45)',
+            color: 'var(--gold-light)',
+            fontWeight: 'bold',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            borderRadius: '100px',
+            padding: '4px 10px',
+            cursor: 'pointer'
+          }}
+          title="Descargar APK o Instalar PWA"
+        >
+          <Smartphone size={13} />
+          <span>App</span>
+        </button>
       </div>
     </nav>
   )
@@ -199,7 +221,7 @@ function FloatingNavbar() {
 //  HERO GALLERY — Slideshow fullscreen con Ken Burns
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HeroGallery({ slides, onOpenReserva }) {
+function HeroGallery({ slides, onOpenReserva, onOpenInstalacion }) {
   const [indiceActual, setIndiceActual] = useState(0)
   const [indicePrevio, setIndicePrevio] = useState(null)
   const timerRef = useRef(null)
@@ -321,6 +343,20 @@ function HeroGallery({ slides, onOpenReserva }) {
           >
             Reservar Mesa
           </button>
+          <button 
+            type="button"
+            onClick={onOpenInstalacion} 
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              borderColor: 'rgba(200, 144, 58, 0.5)',
+              color: 'var(--gold-light)'
+            }}
+          >
+            <Smartphone size={16} /> Instalar App / APK
+          </button>
         </div>
       </div>
 
@@ -418,7 +454,20 @@ function GaleriaMosaico({ items }) {
 
 function NuestraCarta({ menu, pedido, setPedido }) {
   const [categoriaActiva, setCategoriaActiva] = useState('principales')
-  const platos = menu[categoriaActiva] || []
+  const [busqueda, setBusqueda] = useState('')
+  const [platoDetalle, setPlatoDetalle] = useState(null)
+
+  // Obtener platos según búsqueda o categoría activa
+  const todosLosPlatos = Object.values(menu).flat()
+  const platos = busqueda.trim()
+    ? todosLosPlatos.filter(item => {
+        const q = busqueda.toLowerCase().trim()
+        const matchNombre = (item.nombre || '').toLowerCase().includes(q)
+        const matchDesc = (item.descripcion || '').toLowerCase().includes(q)
+        const matchIng = (item.ingredientes || '').toLowerCase().includes(q)
+        return matchNombre || matchDesc || matchIng
+      })
+    : (menu[categoriaActiva] || [])
 
   const incrementar = (id) => {
     setPedido(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
@@ -444,58 +493,171 @@ function NuestraCarta({ menu, pedido, setPedido }) {
           </p>
         </div>
 
-        {/* Selector de categorías */}
-        <div className="menu-tabs">
-          {MENU_CATEGORIAS.map((cat) => (
-            <button
-              key={cat.id}
-              className={`menu-tab-btn ${categoriaActiva === cat.id ? 'active' : ''}`}
-              onClick={() => setCategoriaActiva(cat.id)}
-            >
-              <span style={{ marginRight: '6px' }}>{cat.icon}</span>
-              {cat.nombre}
-            </button>
-          ))}
+        {/* Barra de Búsqueda Interactiva del Menú */}
+        <div style={{ maxWidth: '480px', margin: '0 auto 28px', position: 'relative' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1.5px solid rgba(74, 124, 63, 0.25)',
+            borderRadius: '100px',
+            padding: '10px 18px',
+            backdropFilter: 'blur(10px)',
+            transition: 'border-color 0.3s ease'
+          }}>
+            <Search size={18} color="var(--gold-light, #e8af60)" />
+            <input
+              type="text"
+              placeholder="Buscar por plato o ingrediente (ej. Charque, Uchu)..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: '13.5px',
+                outline: 'none',
+                fontFamily: 'Inter, sans-serif'
+              }}
+            />
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          {busqueda && (
+            <p style={{ textAlign: 'center', fontSize: '12px', color: '#a8b89a', marginTop: '8px' }}>
+              Encontrados {platos.length} plato(s) con "{busqueda}"
+            </p>
+          )}
         </div>
 
-        {/* Grilla de platos */}
+        {/* Selector de categorías horizontal */}
+        {!busqueda && (
+          <div className="menu-tabs">
+            {MENU_CATEGORIAS.map((cat) => {
+              const cantidad = (menu[cat.id] || []).length
+              return (
+                <button
+                  key={cat.id}
+                  className={`menu-tab-btn ${categoriaActiva === cat.id ? 'active' : ''}`}
+                  onClick={() => setCategoriaActiva(cat.id)}
+                >
+                  <span style={{ marginRight: '6px' }}>{cat.icon}</span>
+                  {cat.nombre}
+                  {cantidad > 0 && (
+                    <span style={{
+                      marginLeft: '6px',
+                      background: categoriaActiva === cat.id ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.08)',
+                      padding: '2px 7px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 'bold'
+                    }}>
+                      {cantidad}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Grilla de platos interactiva */}
         <div className="menu-grid">
           {platos.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-muted">
-              No hay platos disponibles en esta categoría por el momento.
+            <div className="col-span-full py-12 text-center text-muted" style={{ gridColumn: '1 / -1', padding: '40px 0', textAlign: 'center', color: '#888' }}>
+              <p style={{ fontSize: '15px', marginBottom: '8px' }}>No hay platos disponibles con esta búsqueda.</p>
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => setBusqueda('')}
+                  className="btn btn-gold"
+                  style={{ padding: '8px 20px', borderRadius: '100px', fontSize: '12px' }}
+                >
+                  Ver toda la carta
+                </button>
+              )}
             </div>
           ) : (
             platos.map((item, index) => {
-              const imageSrc = item.imagenResuelta || resolverImagenPlato(item, platos)
+              const imageSrc = item.imagenResuelta || resolverImagenPlato(item, todosLosPlatos)
               const formattedPrice = typeof item.precio_actual === 'number'
                 ? `Bs. ${item.precio_actual}`
                 : (item.precio ? `Bs. ${item.precio}` : 'Consultar')
               const cant = pedido[item.id] || 0
 
               return (
-                <div className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} key={index}>
+                <div 
+                  className={`menu-item-card ${imageSrc ? 'has-image' : ''}`} 
+                  key={item.id || index}
+                >
                   {imageSrc && (
-                    <div className="menu-item-image">
+                    <div 
+                      className="menu-item-image"
+                      onClick={() => setPlatoDetalle({ ...item, imageSrc, formattedPrice })}
+                      style={{ cursor: 'pointer' }}
+                      title="Ver foto y detalles completos"
+                    >
                       <img src={imageSrc} alt={item.nombre} loading="lazy" decoding="async" />
+                      <div className="menu-item-image-overlay" style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'flex-end',
+                        padding: '6px'
+                      }}>
+                        <span style={{ background: 'rgba(0,0,0,0.5)', padding: '3px 6px', borderRadius: '6px', fontSize: '10px', color: '#fff', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Eye size={10} /> Ver
+                        </span>
+                      </div>
                     </div>
                   )}
                   <div className="menu-item-content">
                     <div>
                       <div className="menu-item-header">
-                        <h3 className="menu-item-name">{item.nombre}</h3>
+                        <h3 
+                          className="menu-item-name" 
+                          onClick={() => setPlatoDetalle({ ...item, imageSrc, formattedPrice })}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {item.nombre}
+                        </h3>
                       </div>
-                      <p className="menu-item-desc">{item.descripcion || 'Sin descripción'}</p>
+                      <p className="menu-item-desc">{item.descripcion || 'Especialidad tradicional de la casa.'}</p>
                     </div>
                     {item.ingredientes && (
-                      <div className="menu-item-ingredients" style={{ marginBottom: '10px' }}>
-                        <span className="menu-item-ingredients-label">Ingredientes:</span>
-                        <p className="menu-item-ingredients-text">{item.ingredientes}</p>
+                      <div className="menu-item-ingredients" style={{ marginBottom: '8px' }}>
+                        <span className="menu-item-ingredients-label">Ingredientes: </span>
+                        <span className="menu-item-ingredients-text" style={{ fontSize: '11.5px', color: '#a8b89a' }}>{item.ingredientes}</span>
                       </div>
                     )}
                     
                     {/* Selector de cantidad interactivo en la carta */}
-                    <div className="menu-item-action" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(74,124,63,0.12)', paddingTop: '12px' }}>
-                      <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem' }}>{formattedPrice}</span>
+                    <div className="menu-item-action" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(74,124,63,0.12)', paddingTop: '10px' }}>
+                      <span className="menu-item-price" style={{ color: 'var(--gold-light)', fontWeight: 'bold', fontSize: '1.05rem', fontFamily: 'monospace' }}>
+                        {formattedPrice}
+                      </span>
                       
                       {cant > 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -503,6 +665,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); decrementar(item.id) }}
                             className="qty-btn"
+                            aria-label="Restar uno"
                           >
                             −
                           </button>
@@ -513,6 +676,7 @@ function NuestraCarta({ menu, pedido, setPedido }) {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); incrementar(item.id) }}
                             className="qty-btn"
+                            aria-label="Sumar uno"
                           >
                             +
                           </button>
@@ -533,6 +697,137 @@ function NuestraCarta({ menu, pedido, setPedido }) {
             })
           )}
         </div>
+
+        {/* Modal de Detalle de Plato en Alta Definición */}
+        {platoDetalle && (
+          <div 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9998,
+              background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={() => setPlatoDetalle(null)}
+          >
+            <div 
+              style={{
+                width: '100%',
+                maxWidth: '480px',
+                background: 'linear-gradient(180deg, #121c0e 0%, #080d06 100%)',
+                border: '1.5px solid rgba(200, 144, 58, 0.4)',
+                borderRadius: '20px',
+                overflow: 'hidden',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
+                color: '#ede8dc',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                type="button"
+                onClick={() => setPlatoDetalle(null)}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  zIndex: 10,
+                  background: 'rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+
+              {platoDetalle.imageSrc && (
+                <div style={{ width: '100%', height: '240px', overflow: 'hidden', position: 'relative' }}>
+                  <img 
+                    src={platoDetalle.imageSrc} 
+                    alt={platoDetalle.nombre}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '20px 16px 10px',
+                    background: 'linear-gradient(to top, #121c0e 0%, transparent 100%)'
+                  }} />
+                </div>
+              )}
+
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--primary-light)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>
+                      {platoDetalle.categoria || 'Especialidad'}
+                    </span>
+                    <h3 style={{ margin: '4px 0 0', fontSize: '20px', color: '#fff', fontFamily: 'Playfair Display, serif' }}>
+                      {platoDetalle.nombre}
+                    </h3>
+                  </div>
+                  <span style={{ color: 'var(--gold-light)', fontSize: '1.3rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    {platoDetalle.formattedPrice}
+                  </span>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '13px', color: '#ccc', lineHeight: 1.5 }}>
+                  {platoDetalle.descripcion || 'Preparado fresco al momento siguiendo recetas tradicionales de antaño.'}
+                </p>
+
+                {platoDetalle.ingredientes && (
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Info size={14} color="var(--gold)" />
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--gold)' }}>Ingredientes y acompañamientos:</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#a8b89a', lineHeight: 1.4 }}>
+                      {platoDetalle.ingredientes}
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px' }}>
+                  <span style={{ fontSize: '13px', color: '#888' }}>Cantidad en tu pedido:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.5)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button 
+                      type="button"
+                      onClick={() => decrementar(platoDetalle.id)}
+                      className="qty-btn"
+                      style={{ width: '28px', height: '28px', fontSize: '16px' }}
+                    >
+                      −
+                    </button>
+                    <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '15px', fontWeight: 'bold', color: 'var(--gold)' }}>
+                      {pedido[platoDetalle.id] || 0}
+                    </span>
+                    <button 
+                      type="button"
+                      onClick={() => incrementar(platoDetalle.id)}
+                      className="qty-btn"
+                      style={{ width: '28px', height: '28px', fontSize: '16px' }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -801,7 +1096,7 @@ function UbicacionContacto({ onOpenReserva }) {
 //  FOOTER — Minimalista
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function Footer({ onOpenReserva }) {
+function Footer({ onOpenReserva, onOpenInstalacion }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id)
     if (el) el.scrollIntoView({ behavior: 'smooth' })
@@ -822,6 +1117,28 @@ function Footer({ onOpenReserva }) {
           <a onClick={() => scrollToSection('menu')}>Menú</a>
           <a onClick={() => scrollToSection('promociones')}>Eventos de la Semana</a>
           <a onClick={() => scrollToSection('contacto')}>Contacto</a>
+        </div>
+
+        {/* Botón de Instalación APK / PWA en el Footer */}
+        <div style={{ margin: '18px 0', display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={onOpenInstalacion}
+            className="btn btn-gold"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              borderRadius: '100px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              boxShadow: '0 4px 16px rgba(200, 144, 58, 0.35)',
+              cursor: 'pointer'
+            }}
+          >
+            <Smartphone size={16} /> Instalar App Móvil / Descargar APK Oficial
+          </button>
         </div>
 
         <div className="footer-info">
@@ -1854,6 +2171,7 @@ export default function App() {
   const [pedido, setPedido] = useState({})
   const [coords, setCoords] = useState({ lat: -17.3895, lng: -66.1568 })
   const [imagenPago, setImagenPago] = useState(null)
+  const [modalInstalacionAbierto, setModalInstalacionAbierto] = useState(false)
 
   const steps = tipoEntrega === 'delivery'
     ? ['datos', 'tipo', 'ubicacion', 'menu', 'pago']
@@ -2061,13 +2379,24 @@ export default function App() {
 
   return (
     <>
-      <FloatingNavbar />
-      <HeroGallery slides={heroSlides} onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} />
+      <FloatingNavbar onOpenInstalacion={() => setModalInstalacionAbierto(true)} />
+      <HeroGallery 
+        slides={heroSlides} 
+        onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} 
+        onOpenInstalacion={() => setModalInstalacionAbierto(true)}
+      />
       <GaleriaMosaico items={itemsProcesados} />
       <NuestraCarta menu={menu} pedido={pedido} setPedido={setPedido} />
       <AvisosDestacados promosList={promosAPI} loading={loadingPromos} />
       <UbicacionContacto onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} />
-      <Footer onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} />
+      <Footer 
+        onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }}
+        onOpenInstalacion={() => setModalInstalacionAbierto(true)}
+      />
+      <ModalInstalacionApp 
+        isOpen={modalInstalacionAbierto} 
+        onClose={() => setModalInstalacionAbierto(false)} 
+      />
       <WhatsAppFAB 
         onOpenReserva={() => { setPrefillReserva(null); setVistaActiva('pedidos'); }} 
         className={totalEstimado > 0 ? 'cart-active' : ''}
