@@ -8,10 +8,6 @@ import './index.css'
 import ModalInstalacionApp from './components/ModalInstalacionApp.jsx'
 import ModalCheckoutLanding from './components/ModalCheckoutLanding.jsx'
 import ModalSeguimientoPedido from './components/ModalSeguimientoPedido.jsx'
-import ModalAuthCliente from './components/ModalAuthCliente.jsx'
-import ModalPerfilCliente from './components/ModalPerfilCliente.jsx'
-import { supabase } from './lib/supabase.js'
-import { obtenerPerfilCliente } from './lib/auth-cliente.js'
 import {
   cargarMenuDesdeSupabase,
   cargarPromocionesDesdeSupabase,
@@ -159,11 +155,7 @@ function WhatsAppIcon({ size = 24 }) {
 function FloatingNavbar({ 
   onOpenInstalacion, 
   pedidoActivo, 
-  onOpenSeguimiento,
-  usuario,
-  perfil,
-  onOpenLogin,
-  onOpenPerfil
+  onOpenSeguimiento
 }) {
   const [visible, setVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
@@ -226,8 +218,6 @@ function FloatingNavbar({
     }
   }
 
-  const primerNombre = (perfil?.nombre || usuario?.email || 'Mi Perfil').split(' ')[0]
-
   return (
     <nav className={`floating-navbar ${!visible ? 'hidden-nav' : ''}`}>
       <div className="floating-navbar-brand" onClick={() => scrollToSection('inicio')} style={{ cursor: 'pointer' }}>
@@ -263,82 +253,24 @@ function FloatingNavbar({
           Contacto
         </a>
 
-        {/* Botón de Rastrear / Mis Pedidos */}
+        {/* Botón de Rastrear Pedido */}
         <a 
           className="floating-navbar-link"
           onClick={() => {
-            if (usuario) {
-              onOpenPerfil && onOpenPerfil()
-            } else {
-              onOpenSeguimiento && onOpenSeguimiento()
-            }
+            onOpenSeguimiento && onOpenSeguimiento()
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
-          title={usuario ? 'Ver mis pedidos' : 'Rastrear pedido en tiempo real'}
+          title="Rastrear pedido en tiempo real"
         >
           {pedidoActivo ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4ade80', fontWeight: 'bold' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              Mis Pedidos
+              Mi Pedido
             </span>
           ) : (
-            <span>{usuario ? '📦 Mis Pedidos' : '🔍 Rastrear'}</span>
+            <span>🔍 Rastrear</span>
           )}
         </a>
-
-        {/* Botón de Iniciar Sesión / Perfil del Cliente */}
-        {usuario ? (
-          <button
-            type="button"
-            onClick={onOpenPerfil}
-            style={{
-              background: 'rgba(200, 144, 58, 0.18)',
-              border: '1.5px solid var(--gold)',
-              borderRadius: '100px',
-              padding: '6px 14px',
-              color: '#fff',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'transform 0.15s ease',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            title="Ver mi perfil y pedidos"
-          >
-            <span style={{ fontSize: '13px' }}>👤</span>
-            <span>{primerNombre}</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onOpenLogin}
-            style={{
-              background: 'linear-gradient(135deg, #e8af60 0%, #c8903a 100%)',
-              border: 'none',
-              borderRadius: '100px',
-              padding: '6px 15px',
-              color: '#0f1710',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 3px 12px rgba(200, 144, 58, 0.35)',
-              transition: 'transform 0.15s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            <span>🔑</span>
-            <span>Iniciar Sesión</span>
-          </button>
-        )}
       </div>
     </nav>
   )
@@ -3437,60 +3369,9 @@ export default function App() {
   const [modalidadCheckout, setModalidadCheckout] = useState('delivery')
   const [enviandoPedido, setEnviandoPedido] = useState(false)
 
-  // ── Estados de Autenticación del Cliente ──
-  const [usuario, setUsuario] = useState(null)
-  const [perfilCliente, setPerfilCliente] = useState(null)
-  const [modalAuthAbierto, setModalAuthAbierto] = useState(false)
-  const [modalPerfilAbierto, setModalPerfilAbierto] = useState(false)
-  const [mensajeAuth, setMensajeAuth] = useState(null)
-
-  // Sincronización en vivo de la sesión con Supabase Auth
-  useEffect(() => {
-    let montado = true
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!montado) return
-      const user = session?.user || null
-      setUsuario(user)
-      if (user) {
-        obtenerPerfilCliente(user).then(p => {
-          if (montado && p) {
-            setPerfilCliente(p)
-            if (p.nombre && !nombre) setNombre(p.nombre)
-            if (p.telefono && !telefono) setTelefono(p.telefono)
-          }
-        })
-      }
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const user = session?.user || null
-      setUsuario(user)
-      if (user) {
-        const p = await obtenerPerfilCliente(user)
-        if (montado && p) {
-          setPerfilCliente(p)
-          if (p.nombre) setNombre(prev => prev || p.nombre)
-          if (p.telefono) setTelefono(prev => prev || p.telefono)
-        }
-      } else {
-        setPerfilCliente(null)
-      }
-    })
-
-    return () => {
-      montado = false
-      subscription?.unsubscribe()
-    }
-  }, [])
-
-  const handleAbrirSeguimientoOPerfil = (id = null) => {
-    if (usuario) {
-      setModalPerfilAbierto(true)
-    } else {
-      setMensajeAuth('Inicia sesión o regístrate para acceder a tu perfil y dar seguimiento a tus pedidos.')
-      setModalAuthAbierto(true)
-    }
+  const handleAbrirSeguimiento = (id = null) => {
+    setRastreoPedidoId(id || pedidoActivo?.id || null)
+    setModalSeguimientoAbierto(true)
   }
 
   const handleIniciarPedidoOFlujo = (modo = 'delivery') => {
@@ -3507,10 +3388,7 @@ export default function App() {
   const handleConfirmarPedidoCheckout = async (datosPayload) => {
     try {
       setEnviandoPedido(true)
-      const res = await crearPedidoOnline({
-        ...datosPayload,
-        idCliente: usuario?.id || datosPayload.idCliente || null
-      })
+      const res = await crearPedidoOnline(datosPayload)
       if (res && res.ok) {
         const id = res.id
         const codigo = res.pedido?.numero_ficha 
@@ -3734,14 +3612,7 @@ export default function App() {
       <FloatingNavbar 
         onOpenInstalacion={() => setModalInstalacionAbierto(true)}
         pedidoActivo={pedidoActivo}
-        onOpenSeguimiento={() => handleAbrirSeguimientoOPerfil()}
-        usuario={usuario}
-        perfil={perfilCliente}
-        onOpenLogin={() => {
-          setMensajeAuth(null)
-          setModalAuthAbierto(true)
-        }}
-        onOpenPerfil={() => setModalPerfilAbierto(true)}
+        onOpenSeguimiento={(id) => handleAbrirSeguimiento(id)}
       />
       <HeroGallery 
         slides={heroSlides} 
@@ -3797,7 +3668,7 @@ export default function App() {
       {pedidoActivo && !modalSeguimientoAbierto && !modalCheckoutAbierto && (
         <button
           type="button"
-          onClick={() => handleAbrirSeguimientoOPerfil(pedidoActivo.id)}
+          onClick={() => handleAbrirSeguimiento(pedidoActivo.id)}
           style={{
             position: 'fixed',
             bottom: totalEstimado > 0 ? '145px' : '90px',
@@ -3835,15 +3706,9 @@ export default function App() {
           enviandoPedido={enviandoPedido}
           onAbrirSeguimiento={(id) => {
             setModalCheckoutAbierto(false)
-            handleAbrirSeguimientoOPerfil(id)
+            handleAbrirSeguimiento(id)
           }}
           modalidadInicial={modalidadCheckout}
-          usuario={usuario}
-          perfil={perfilCliente}
-          onAbrirLogin={() => {
-            setMensajeAuth('Inicia sesión para asociar tu pedido a tu cuenta.')
-            setModalAuthAbierto(true)
-          }}
         />
       )}
 
@@ -3857,40 +3722,6 @@ export default function App() {
           }}
         />
       )}
-
-      {/* Modal de Autenticación de Clientes (Login y Registro) */}
-      <ModalAuthCliente
-        isOpen={modalAuthAbierto}
-        onClose={() => {
-          setModalAuthAbierto(false)
-          setMensajeAuth(null)
-        }}
-        mensajeInicial={mensajeAuth}
-        onLoginExitoso={(user) => {
-          setUsuario(user)
-          obtenerPerfilCliente(user).then(p => {
-            if (p) setPerfilCliente(p)
-          })
-          setModalPerfilAbierto(true)
-        }}
-      />
-
-      {/* Modal de Perfil del Cliente y "Mis Pedidos" */}
-      <ModalPerfilCliente
-        isOpen={modalPerfilAbierto}
-        onClose={() => setModalPerfilAbierto(false)}
-        usuario={usuario}
-        perfil={perfilCliente}
-        onPerfilActualizado={(nuevoPerfil) => setPerfilCliente(nuevoPerfil)}
-        onCerrarSesion={() => {
-          setUsuario(null)
-          setPerfilCliente(null)
-        }}
-        onVerSeguimientoPedido={(id) => {
-          setRastreoPedidoId(id)
-          setModalSeguimientoAbierto(true)
-        }}
-      />
     </>
   )
 }
