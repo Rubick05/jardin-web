@@ -25,18 +25,88 @@ export async function generarQRDataURL(texto) {
 }
 
 /**
- * Descarga una imagen Data URL como archivo PNG en el navegador
- * @param {string} dataUrl - URL base64 de la imagen
+ * Descarga una imagen (Data URL, ruta local o URL remota) como archivo,
+ * SIN abrir una pestaña nueva.
+ *
+ * El atributo `download` es ignorado por los navegadores cuando el href es de
+ * otro dominio (Cloudinary, api.qrserver.com...), y en ese caso abren la imagen
+ * en otra pestaña. Para evitarlo convertimos siempre la imagen a Blob y
+ * descargamos un object URL del mismo origen.
+ *
+ * @param {string} src - Data URL, ruta local o URL remota de la imagen
  * @param {string} nombreArchivo - Nombre deseado para el archivo descargado
+ * @returns {Promise<boolean>} true si la descarga se disparó correctamente
  */
-export function descargarQR(dataUrl, nombreArchivo = 'QR-Pedido-ElJardin.png') {
-  if (!dataUrl) return;
-  const link = document.createElement('a');
-  link.href = dataUrl;
-  link.download = nombreArchivo;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+export async function descargarQR(src, nombreArchivo = 'QR-Pedido-ElJardin.png') {
+  if (!src) return false;
+
+  const dispararDescarga = (href) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = nombreArchivo;
+    link.rel = 'noopener';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const descargarBlob = (blob) => {
+    const objectUrl = URL.createObjectURL(blob);
+    dispararDescarga(objectUrl);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  };
+
+  // 1. Data URL → Blob directo (sin red)
+  if (src.startsWith('data:')) {
+    try {
+      const blob = await (await fetch(src)).blob();
+      descargarBlob(blob);
+    } catch {
+      dispararDescarga(src);
+    }
+    return true;
+  }
+
+  // 2. URL remota o local → fetch a Blob
+  try {
+    const res = await fetch(src, { mode: 'cors', cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    descargarBlob(await res.blob());
+    return true;
+  } catch (err) {
+    console.warn('Fetch directo del QR falló, intentando vía canvas:', err);
+  }
+
+  // 3. Fallback: dibujar en canvas (requiere CORS habilitado en la imagen)
+  try {
+    const blob = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('canvas vacío'))), 'image/png');
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+    descargarBlob(blob);
+    return true;
+  } catch (err) {
+    console.warn('Fallback canvas falló:', err);
+  }
+
+  // 4. Último recurso para Cloudinary: forzar cabecera de descarga (attachment)
+  if (src.includes('res.cloudinary.com') && src.includes('/upload/')) {
+    dispararDescarga(src.replace('/upload/', '/upload/fl_attachment/'));
+    return true;
+  }
+
+  alert('No se pudo descargar el QR automáticamente. Mantén presionada la imagen y elige "Guardar imagen".');
+  return false;
 }
 
 /**

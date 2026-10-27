@@ -593,6 +593,7 @@ export async function crearPedidoOnline({
   direccion,
   zona,
   coords,
+  googleMapsUrl,
   referencia,
   notasAdicionales,
   personas,
@@ -601,7 +602,8 @@ export async function crearPedidoOnline({
   itemsSeleccionados,
   totalEstimado,
   deposito,
-  imagenPago
+  imagenPago,
+  idCliente
 }) {
   const pedidoId = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
   const saldoPendiente = Math.max(0, (totalEstimado || 0) - (deposito || 0));
@@ -609,12 +611,14 @@ export async function crearPedidoOnline({
   const datosFacturacion = {
     origen: tipoEntrega === 'delivery' ? 'web_delivery' : 'web_reserva',
     tipo_entrega: tipoEntrega || 'local',
+    id_cliente: idCliente || null,
     cliente_nombre: (nombre || 'Cliente').trim(),
     cliente_telefono: (telefono || '').trim(),
     direccion: tipoEntrega === 'delivery' ? (direccion || '').trim() : 'Consumo en Salón',
     zona: tipoEntrega === 'delivery' ? (zona || '') : '',
     coordenadas: coords || null,
-    google_maps_url: coords?.lat && coords?.lng ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}` : '',
+    google_maps_url: (googleMapsUrl && googleMapsUrl.trim())
+      || (coords?.lat && coords?.lng ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}` : ''),
     referencia: referencia || '',
     notas_adicionales: notasAdicionales || '',
     personas: personas || 2,
@@ -647,16 +651,19 @@ export async function crearPedidoOnline({
     };
   });
 
+  const mapsNota = tipoEntrega === 'delivery' && datosFacturacion.google_maps_url ? ` Maps: ${datosFacturacion.google_maps_url}` : '';
+
   const bodyData = {
     id: pedidoId,
     id_restaurante: 'demo-tenant',
     id_mesero: 'web-online',
+    id_cliente: idCliente || null,
     numero_letrero: 0,
     subtotal: Number(totalEstimado || 0),
     total: Number(totalEstimado || 0),
     estado: 'pendiente',
     datos_facturacion: datosFacturacion,
-    notas: `[${tipoEntrega === 'delivery' ? '🛵 DELIVERY' : '🪴 RESERVA'}] ${nombre} (${telefono || 'S/N'}). ${tipoEntrega === 'delivery' ? `Dir: ${direccion}, ${zona}` : `${personas} pers.`}. Pagado: Bs. ${deposito}. Falta pagar: Bs. ${saldoPendiente}.`,
+    notas: `[${tipoEntrega === 'delivery' ? '🛵 DELIVERY' : '🪴 RESERVA'}] ${nombre} (${telefono || 'S/N'}). ${tipoEntrega === 'delivery' ? `Dir: ${direccion}, ${zona}` : `${personas} pers.`}. Pagado: Bs. ${deposito}. Falta pagar: Bs. ${saldoPendiente}.${mapsNota}`,
     items: itemsFormatted
   };
 
@@ -691,6 +698,7 @@ export async function crearPedidoOnline({
         id: pedidoId,
         id_restaurante: 'demo-tenant',
         id_mesero: 'web-online',
+        id_cliente: idCliente || null,
         numero_ficha: Math.floor(Date.now() / 1000) % 1000,
         numero_letrero: 0,
         estado: 'pendiente',

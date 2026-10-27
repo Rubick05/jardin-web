@@ -7,6 +7,7 @@ import {
 import { Html5Qrcode } from 'html5-qrcode';
 import { consultarEstadoPedido, buscarPedidosPorTelefono } from '../lib/api-menu';
 import { extraerIdPedidoDeTexto, escanearImagenQR } from '../lib/utils-qr';
+import { linkWhatsApp } from '../lib/config-contacto';
 
 export default function ModalSeguimientoPedido({ pedidoId, pedidoInicial = null, onCerrar }) {
   const [pedido, setPedido] = useState(pedidoInicial);
@@ -187,9 +188,10 @@ export default function ModalSeguimientoPedido({ pedidoId, pedidoInicial = null,
   const esDelivery = tipoEntrega === 'delivery';
 
   // Determinar paso activo del stepper (1 a 4)
+  const esEnPuerta = estado === 'en_puerta';
   let pasoActivo = 1;
-  if (estado === 'en_proceso') pasoActivo = 2;
-  else if (estado === 'en_camino' || estado === 'listo') pasoActivo = 3;
+  if (estado === 'en_proceso' || estado === 'en_preparacion' || estado === 'preparando') pasoActivo = 2;
+  else if (estado === 'en_camino' || estado === 'listo' || esEnPuerta) pasoActivo = 3;
   else if (estado === 'entregado' || estado === 'pagado') pasoActivo = 4;
 
   const total = Number(pedido?.total ?? df.total_estimado ?? 0);
@@ -203,11 +205,10 @@ export default function ModalSeguimientoPedido({ pedidoId, pedidoInicial = null,
     : (pedido?.id ? `#${pedido.id.slice(0, 8).toUpperCase()}` : '#PEDIDO');
 
   const abrirWhatsAppRestaurante = () => {
-    const telefonoRestaurante = '59169466547';
-    const msg = encodeURIComponent(
-      `Hola *El Jardín*, consulto por el estado de mi pedido ${codigoDisplay} a nombre de *${df.cliente_nombre || 'Cliente'}*. ¿Cómo va la preparación?`
+    window.open(
+      linkWhatsApp(`Hola *El Jardín*, consulto por el estado de mi pedido ${codigoDisplay} a nombre de *${df.cliente_nombre || 'Cliente'}*. ¿Cómo va la preparación?`),
+      '_blank'
     );
-    window.open(`https://wa.me/${telefonoRestaurante}?text=${msg}`, '_blank');
   };
 
   return (
@@ -576,15 +577,23 @@ export default function ModalSeguimientoPedido({ pedidoId, pedidoInicial = null,
                   <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', margin: '2px 0' }}>
                     {pasoActivo === 1 && '📝 Recibido en Cocina'}
                     {pasoActivo === 2 && '👨‍🍳 Sigue en el Local (En Preparación)'}
-                    {pasoActivo === 3 && (esDelivery ? '🛵 ¡Ya Salió! En Camino con el Repartidor' : '🍽️ ¡Mesa Lista en el Restaurante!')}
+                    {pasoActivo === 3 && (
+                      esEnPuerta 
+                        ? '🚪 ¡EL REPARTIDOR ESTÁ YA EN PUERTA!' 
+                        : (esDelivery ? '🛵 ¡Ya Salió! En Camino con el Repartidor' : '🍽️ ¡Mesa Lista en el Restaurante!')
+                    )}
                     {pasoActivo === 4 && '✅ Entregado al Cliente'}
                   </div>
-                  <div style={{ fontSize: '11.5px', color: '#cddbc5', lineHeight: '1.3' }}>
+                  <div style={{ fontSize: '11.5px', color: esEnPuerta ? '#fde047' : '#cddbc5', lineHeight: '1.3', fontWeight: esEnPuerta ? 'bold' : 'normal' }}>
                     {pasoActivo === 1 && 'El pedido está registrado y en verificación para encender fogones.'}
                     {pasoActivo === 2 && 'Los cocineros de El Jardín están elaborando tus platos en nuestras instalaciones.'}
-                    {pasoActivo === 3 && (esDelivery 
-                      ? 'El chofer recogió tu comida del local y va en trayecto hacia tu dirección.' 
-                      : 'Tu mesa está reservada y la comida lista esperándote en el restaurante.')}
+                    {pasoActivo === 3 && (
+                      esEnPuerta 
+                        ? 'Tu repartidor ha llegado a la dirección. Por favor sal a recibir tu comida caliente.'
+                        : (esDelivery 
+                            ? 'El chofer recogió tu comida del local y va en trayecto hacia tu dirección.' 
+                            : 'Tu mesa está reservada y la comida lista esperándote en el restaurante.')
+                    )}
                     {pasoActivo === 4 && '¡Buen provecho! Gracias por preferir el sabor y tradición de El Jardín.'}
                   </div>
                 </div>

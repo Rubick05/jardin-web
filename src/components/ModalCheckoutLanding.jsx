@@ -3,10 +3,40 @@ import {
   ShoppingBag, CheckCircle2, AlertCircle, X, Upload, 
   Bike, Store, DollarSign, ArrowRight, ShieldCheck, Download,
   Calendar, Clock, Users, MapPin, Phone, User, QrCode, MessageCircle,
-  Plus, Minus, Trash2
+  Plus, Minus, Trash2, Navigation, Link2, ExternalLink, Loader2
 } from 'lucide-react';
 import { comprimirImagenLocal } from '../lib/utils-imagen';
 import { generarQRDataURL, descargarQR } from '../lib/utils-qr';
+import { linkWhatsApp } from '../lib/config-contacto';
+
+/**
+ * Intenta extraer lat/lng de un enlace de Google Maps o de un texto "lat, lng".
+ * Los enlaces cortos (maps.app.goo.gl) no contienen coordenadas: se guardan tal cual.
+ */
+function extraerCoordsDeLink(texto) {
+  if (!texto) return null;
+  let t = String(texto).trim();
+  try { t = decodeURIComponent(t); } catch { /* texto con % inválido: usar tal cual */ }
+  const patrones = [
+    /@(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/,                         // .../@-17.38,-66.15,17z
+    /!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/,                         // ...!3d-17.38!4d-66.15
+    /[?&](?:q|query|ll|destination|center)=(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/, // ?q=-17.38,-66.15
+    /^(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)$/                          // "-17.38, -66.15"
+  ];
+  for (const re of patrones) {
+    const m = t.match(re);
+    if (m) {
+      const lat = parseFloat(m[1]);
+      const lng = parseFloat(m[2]);
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+  }
+  return null;
+}
+
+function esLinkGoogleMaps(texto) {
+  return /^(https?:\/\/)?((www\.|maps\.)?google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.[a-z.]+)/i.test(String(texto).trim());
+}
 
 export default function ModalCheckoutLanding({
   isOpen,
@@ -18,19 +48,33 @@ export default function ModalCheckoutLanding({
   onConfirmarPedido,
   enviandoPedido,
   onAbrirSeguimiento,
-  modalidadInicial = 'delivery'
+  modalidadInicial = 'delivery',
+  usuario = null,
+  perfil = null,
+  onAbrirLogin = null
 }) {
   const [paso, setPaso] = useState(1);
   const [tipoEntrega, setTipoEntrega] = useState(modalidadInicial);
   
   // Datos del cliente
-  const [nombre, setNombre] = useState('');
-  const [telefono, setTelefono] = useState('');
+  const [nombre, setNombre] = useState(perfil?.nombre || '');
+  const [telefono, setTelefono] = useState(perfil?.telefono || '');
+
+  useEffect(() => {
+    if (perfil) {
+      if (perfil.nombre && !nombre) setNombre(perfil.nombre);
+      if (perfil.telefono && !telefono) setTelefono(perfil.telefono);
+    }
+  }, [perfil]);
   
   // Domicilio
   const [direccion, setDireccion] = useState('');
   const [zona, setZona] = useState('Norte (Querú Querú / Las Cuadras)');
   const [referencia, setReferencia] = useState('');
+  const [linkMaps, setLinkMaps] = useState('');
+  const [coords, setCoords] = useState(null);
+  const [obteniendoGps, setObteniendoGps] = useState(false);
+  const [avisoUbicacion, setAvisoUbicacion] = useState(null); // { tipo: 'ok' | 'error' | 'info', texto }
   
   // Local
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
@@ -109,6 +153,92 @@ export default function ModalCheckoutLanding({
     });
   };
 
+  // ─── Ubicación: link de Google Maps / GPS actual ─────────────────────────
+  const urlMapsFinal = coords
+    ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}`
+    : (linkMaps.trim() || '');
+
+  const completarDireccionDesdeCoords = async (lat, lng) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        { headers: { 'Accept-Language': 'es' } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.display_name) {
+        const corta = data.display_name.split(',').slice(0, 3).join(',').trim();
+        setDireccion(prev => (prev.trim() ? prev : corta));
+      }
+    } catch (err) {
+      console.warn('Reverse geocoding no disponible:', err);
+    }
+  };
+
+  const handleCambioLinkMaps = (valor) => {
+    setLinkMaps(valor);
+    const v = valor.trim();
+    if (!v) {
+      setCoords(null);
+      setAvisoUbicacion(null);
+      return;
+    }
+    const c = extraerCoordsDeLink(v);
+    if (c) {
+      setCoords(c);
+      setAvisoUbicacion({ tipo: 'ok', texto: `Ubicación detectada (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)})` });
+      completarDireccionDesdeCoords(c.lat, c.lng);
+    } else if (esLinkGoogleMaps(v)) {
+      setCoords(null);
+      setAvisoUbicacion({ tipo: 'info', texto: 'Enlace de Google Maps guardado. El repartidor lo abrirá directamente.' });
+    } else {
+      setCoords(null);
+      setAvisoUbicacion({ tipo: 'error', texto: 'Esto no parece un enlace de Google Maps. Pega el link desde "Compartir" en Google Maps.' });
+    }
+  };
+
+  const obtenerUbicacionActual = () => {
+    if (!navigator.geolocation) {
+      setAvisoUbicacion({ tipo: 'error', texto: 'Tu navegador no soporta geolocalización. Pega el link de Google Maps.' });
+      return;
+    }
+    setObteniendoGps(true);
+    setAvisoUbicacion({ tipo: 'info', texto: 'Obteniendo tu ubicación…' });
+
+    const exito = (pos) => {
+      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setCoords(c);
+      setLinkMaps(`https://www.google.com/maps?q=${c.lat},${c.lng}`);
+      setObteniendoGps(false);
+      const precision = Math.round(pos.coords.accuracy || 0);
+      setAvisoUbicacion({
+        tipo: 'ok',
+        texto: `Ubicación actual capturada${precision ? ` (precisión ±${precision} m)` : ''}`
+      });
+      completarDireccionDesdeCoords(c.lat, c.lng);
+    };
+
+    const fallo = (err) => {
+      setObteniendoGps(false);
+      const msg = err?.code === 1
+        ? 'Permiso de ubicación denegado. Actívalo en tu navegador o pega el link de Google Maps.'
+        : 'No pudimos obtener tu ubicación. Intenta de nuevo o pega el link de Google Maps.';
+      setAvisoUbicacion({ tipo: 'error', texto: msg });
+    };
+
+    // Alta precisión primero; si expira, reintento con precisión normal (interiores / red móvil)
+    navigator.geolocation.getCurrentPosition(
+      exito,
+      (err) => {
+        if (err?.code === 1) return fallo(err);
+        navigator.geolocation.getCurrentPosition(exito, fallo, {
+          enableHighAccuracy: false, timeout: 10000, maximumAge: 60000
+        });
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  };
+
   const handleSubirComprobante = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -148,6 +278,10 @@ export default function ModalCheckoutLanding({
       alert('Por favor ingresa tu dirección exacta de entrega.');
       return;
     }
+    if (esDelivery && linkMaps.trim() && !coords && !esLinkGoogleMaps(linkMaps)) {
+      alert('El enlace de ubicación no es válido. Pega un link de Google Maps o usa "Mi ubicación actual".');
+      return;
+    }
     setPaso(2);
   };
 
@@ -164,6 +298,10 @@ export default function ModalCheckoutLanding({
       direccion: esDelivery ? direccion.trim() : '',
       zona: esDelivery ? zona : '',
       referencia: esDelivery ? referencia.trim() : '',
+      coords: esDelivery ? coords : null,
+      googleMapsUrl: esDelivery ? urlMapsFinal : '',
+      deposito: montoAnticipo,
+      idCliente: usuario?.id || null,
       fecha: esLocal ? fecha : '',
       hora: esLocal ? hora : (esRecoger ? hora : ''),
       personas: esLocal ? personas : 1,
@@ -442,6 +580,55 @@ export default function ModalCheckoutLanding({
                 )}
               </div>
 
+              {/* Indicador de Usuario / Acceso */}
+              {usuario ? (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: '10px',
+                  fontSize: '11.5px',
+                  color: '#86efac',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>✓ Pedido asociado a tu cuenta ({usuario.email})</span>
+                  <span style={{ fontSize: '11px', color: 'var(--gold-light)' }}>Mis Pedidos</span>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(200, 144, 58, 0.1)',
+                  border: '1px solid rgba(200, 144, 58, 0.25)',
+                  borderRadius: '10px',
+                  fontSize: '11.5px',
+                  color: '#ffefc2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>¿Tienes cuenta en El Jardín?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onAbrirLogin) onAbrirLogin();
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--gold)',
+                      fontWeight: 'bold',
+                      fontSize: '11.5px',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Iniciar Sesión
+                  </button>
+                </div>
+              )}
+
               {/* Formulario de Contacto */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
@@ -523,6 +710,109 @@ export default function ModalCheckoutLanding({
                         />
                         <MapPin size={15} color="var(--gold-light)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                       </div>
+                    </div>
+
+                    {/* Ubicación exacta: link de Google Maps o GPS actual */}
+                    <div style={{
+                      background: 'rgba(200,144,58,0.06)',
+                      border: '1px solid rgba(200,144,58,0.25)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <label htmlFor="input-link-maps" style={{ fontSize: '12px', color: 'var(--gold-light)', fontWeight: 'bold' }}>
+                        📍 Ubicación exacta para el repartidor
+                      </label>
+
+                      <button
+                        type="button"
+                        id="btn-ubicacion-actual"
+                        onClick={obtenerUbicacionActual}
+                        disabled={obteniendoGps}
+                        style={{
+                          width: '100%',
+                          padding: '11px',
+                          background: obteniendoGps ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, rgba(74,124,63,0.55), rgba(46,82,38,0.7))',
+                          border: '1px solid rgba(120,180,100,0.45)',
+                          borderRadius: '10px',
+                          color: '#fff',
+                          fontSize: '12.5px',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          cursor: obteniendoGps ? 'wait' : 'pointer',
+                          transition: 'transform 0.15s ease, filter 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => { if (!obteniendoGps) e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
+                      >
+                        {obteniendoGps
+                          ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                          : <Navigation size={15} />}
+                        {obteniendoGps ? 'Buscando tu ubicación…' : 'Usar mi ubicación actual'}
+                      </button>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#7d8c72', fontSize: '10.5px' }}>
+                        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                        o pega el link de Google Maps
+                        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                      </div>
+
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          id="input-link-maps"
+                          type="url"
+                          inputMode="url"
+                          placeholder="https://maps.app.goo.gl/..."
+                          value={linkMaps}
+                          onChange={(e) => handleCambioLinkMaps(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 34px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${avisoUbicacion?.tipo === 'error' ? 'rgba(255,107,107,0.6)' : 'rgba(74, 124, 63, 0.3)'}`,
+                            borderRadius: '10px',
+                            color: '#fff',
+                            fontSize: '12.5px',
+                            outline: 'none'
+                          }}
+                        />
+                        <Link2 size={15} color="var(--gold-light)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                      </div>
+
+                      {avisoUbicacion && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          fontSize: '11px',
+                          color: avisoUbicacion.tipo === 'ok' ? '#4ade80' : avisoUbicacion.tipo === 'error' ? '#ff8a8a' : '#d4dfce'
+                        }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            {avisoUbicacion.tipo === 'ok' ? <CheckCircle2 size={13} /> : avisoUbicacion.tipo === 'error' ? <AlertCircle size={13} /> : <MapPin size={13} />}
+                            {avisoUbicacion.texto}
+                          </span>
+                          {urlMapsFinal && avisoUbicacion.tipo !== 'error' && (
+                            <a
+                              href={urlMapsFinal}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: 'var(--gold-light)', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                            >
+                              Ver <ExternalLink size={11} />
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      <p style={{ margin: 0, fontSize: '10.5px', color: '#7d8c72', lineHeight: 1.4 }}>
+                        En Google Maps: mantén presionado tu punto → <strong>Compartir</strong> → <strong>Copiar enlace</strong>.
+                      </p>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -819,12 +1109,12 @@ export default function ModalCheckoutLanding({
                 </div>
 
                 <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                  <a
-                    href={qrPagoRestaurante || '/qr-pago.png'}
-                    download="QR-Pago-ElJardin.png"
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    id="btn-descargar-qr-pago"
+                    onClick={() => descargarQR(qrPagoRestaurante || '/qr-pago.png', 'QR-Pago-ElJardin.png')}
                     style={{
+                      cursor: 'pointer',
                       background: 'rgba(255,255,255,0.08)',
                       border: '1px solid rgba(255,255,255,0.15)',
                       borderRadius: '8px',
@@ -838,7 +1128,7 @@ export default function ModalCheckoutLanding({
                     }}
                   >
                     <Download size={13} /> Descargar QR
-                  </a>
+                  </button>
                 </div>
 
                 <p style={{ fontSize: '11px', color: '#a8b89a', margin: '10px 0 0' }}>
@@ -1076,7 +1366,7 @@ export default function ModalCheckoutLanding({
 
               {/* Botón WhatsApp */}
               <a
-                href={`https://wa.me/59169466547?text=${encodeURIComponent(`Hola El Jardín! Acabo de registrar mi pedido #${pedidoCreado.codigo} para ${pedidoCreado.tipoEntrega}. Mi enlace de seguimiento es: ${pedidoCreado.trackingUrl}`)}`}
+                href={linkWhatsApp(`Hola El Jardín! Acabo de registrar mi pedido #${pedidoCreado.codigo} para ${pedidoCreado.tipoEntrega}. Mi enlace de seguimiento es: ${pedidoCreado.trackingUrl}${pedidoCreado.googleMapsUrl ? `\nMi ubicación: ${pedidoCreado.googleMapsUrl}` : ''}`)}
                 target="_blank"
                 rel="noreferrer"
                 style={{

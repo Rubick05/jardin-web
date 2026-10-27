@@ -4,6 +4,7 @@ import {
   Bike, Store, DollarSign, ArrowRight, ShieldCheck, Download
 } from 'lucide-react';
 import { comprimirImagenLocal } from '../lib/utils-imagen';
+import { descargarQR } from '../lib/utils-qr';
 
 export default function ModalConfirmarPedidoYPago({
   tipoEntrega,
@@ -330,10 +331,13 @@ export default function ModalConfirmarPedidoYPago({
                 <div style={{ padding: '8px', background: '#fff', borderRadius: '14px', width: '160px', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={qrPagoRestaurante} alt="QR de Pago" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
-                <a
-                  href={qrPagoRestaurante}
-                  download="QR_Pago_El_Jardin.jpg"
+                <button
+                  type="button"
+                  onClick={() => descargarQR(qrPagoRestaurante, 'QR_Pago_El_Jardin.png')}
                   style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
                     fontSize: '11.5px',
                     color: 'var(--gold-light)',
                     display: 'flex',
@@ -343,7 +347,7 @@ export default function ModalConfirmarPedidoYPago({
                   }}
                 >
                   <Download size={13} /> Descargar Imagen QR para tu Banco
-                </a>
+                </button>
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '12px', color: '#888', fontSize: '12px' }}>
