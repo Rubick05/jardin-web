@@ -38,6 +38,58 @@ function esLinkGoogleMaps(texto) {
   return /^(https?:\/\/)?((www\.|maps\.)?google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.[a-z.]+)/i.test(String(texto).trim());
 }
 
+/**
+ * Prepara el texto formateado para enviar el resumen del pedido directamente por WhatsApp.
+ */
+function construirResumenPedidoWhatsApp(p) {
+  if (!p) return '';
+  const tipo = p.tipoEntrega === 'local' 
+    ? '🍽️ Reserva en Mesa' 
+    : (p.tipoEntrega === 'recoger' ? '🥡 Para Recoger en Local' : '🛵 Delivery a Domicilio');
+
+  let msg = `*RESTAURANTE EL JARDÍN - TRADICIÓN KOCHALA*\n`;
+  msg += `Hola! 👋 Acabo de confirmar mi pedido online:\n\n`;
+  msg += `🔖 *CÓDIGO DE PEDIDO: #${p.codigo}*\n`;
+  msg += `👤 *Cliente:* ${p.nombre}\n`;
+  msg += `📱 *Teléfono:* ${p.telefono}\n`;
+  msg += `🏷️ *Modalidad:* ${tipo}\n`;
+
+  if (p.tipoEntrega === 'local') {
+    if (p.fecha) msg += `📅 *Fecha:* ${p.fecha}\n`;
+    if (p.hora) msg += `⏰ *Hora:* ${p.hora}\n`;
+    if (p.personas) msg += `👥 *Personas:* ${p.personas}\n`;
+  } else if (p.tipoEntrega === 'recoger') {
+    if (p.hora) msg += `⏰ *Hora de recojo:* ${p.hora}\n`;
+  } else {
+    if (p.direccion) msg += `📍 *Dirección:* ${p.direccion}\n`;
+    if (p.zona) msg += `🏘️ *Zona:* ${p.zona}\n`;
+    if (p.referencia) msg += `ℹ️ *Referencia:* ${p.referencia}\n`;
+    if (p.googleMapsUrl) msg += `🗺️ *Ubicación Maps:* ${p.googleMapsUrl}\n`;
+  }
+
+  msg += `\n📋 *Detalle del Pedido:*\n`;
+  if (Array.isArray(p.itemsSeleccionados) && p.itemsSeleccionados.length > 0) {
+    p.itemsSeleccionados.forEach(it => {
+      const cant = it.cantidad || 1;
+      const sub = (it.precio_actual || 0) * cant;
+      msg += `  • ${cant}x ${it.nombre} — Bs. ${sub.toFixed(2)}\n`;
+    });
+  }
+
+  msg += `\n💰 *Total Estimado:* Bs. ${Number(p.totalEstimado || 0).toFixed(2)}\n`;
+  msg += `💳 *Anticipo Abonado:* Bs. ${Number(p.montoAnticipo || 0).toFixed(2)}\n`;
+  if (p.saldoPendiente > 0) {
+    msg += `⚖️ *Saldo Pendiente:* Bs. ${Number(p.saldoPendiente || 0).toFixed(2)}\n`;
+  }
+  if (p.notasAdicionales) {
+    msg += `💬 *Notas:* ${p.notasAdicionales}\n`;
+  }
+  msg += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `Quedo atento(a) a la confirmación de mi pedido por WhatsApp. ¡Muchas gracias!`;
+
+  return msg;
+}
+
 export default function ModalCheckoutLanding({
   isOpen,
   onClose,
@@ -1251,135 +1303,182 @@ export default function ModalCheckoutLanding({
           )}
 
           {/* ════════════════════════════════════════════════════════════════════════
-              PASO 3: CONFIRMACIÓN Y CÓDIGO QR ÚNICO DEL CLIENTE
+              PASO 3: CONFIRMACIÓN DE PEDIDO Y NOTIFICACIÓN POR WHATSAPP
              ════════════════════════════════════════════════════════════════════════ */}
           {paso === 3 && pedidoCreado && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'center', alignItems: 'center' }}>
               
               <div style={{
-                width: '60px',
-                height: '60px',
+                width: '64px',
+                height: '64px',
                 borderRadius: '50%',
-                background: 'rgba(34, 197, 94, 0.2)',
+                background: 'rgba(34, 197, 94, 0.18)',
                 border: '2px solid #22c55e',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#22c55e',
-                animation: 'scaleUp 0.3s ease-out'
+                boxShadow: '0 0 24px rgba(34, 197, 94, 0.35)'
               }}>
-                <CheckCircle2 size={36} />
+                <CheckCircle2 size={38} />
               </div>
 
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', margin: '0 0 4px', fontFamily: 'serif' }}>
+                <h3 style={{ fontSize: '21px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px', fontFamily: 'serif' }}>
                   ¡Pedido Confirmado con Éxito!
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--gold-light)', margin: 0, fontWeight: 'bold' }}>
-                  Código de Pedido: #{pedidoCreado.codigo}
-                </p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(200, 144, 58, 0.18)',
+                  border: '1px solid var(--gold)',
+                  padding: '4px 14px',
+                  borderRadius: '100px',
+                  color: 'var(--gold-light)',
+                  fontWeight: 'bold',
+                  fontSize: '13.5px'
+                }}>
+                  <span>Código de Pedido:</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '15px', color: '#fff' }}>#{pedidoCreado.codigo}</span>
+                </div>
               </div>
 
-              {/* Código QR Único del Cliente */}
+              {/* Mensaje Informativo: Estado llegará por WhatsApp */}
               <div style={{
-                background: 'linear-gradient(180deg, rgba(200,144,58,0.12) 0%, rgba(0,0,0,0.5) 100%)',
-                border: '1.5px solid var(--gold)',
-                borderRadius: '20px',
-                padding: '20px',
+                background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.12) 0%, rgba(18, 140, 126, 0.08) 100%)',
+                border: '1.5px solid rgba(37, 211, 102, 0.45)',
+                borderRadius: '16px',
+                padding: '16px',
                 width: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '8px',
+                boxShadow: '0 6px 20px rgba(0,0,0,0.3)'
               }}>
-                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <QrCode size={16} color="var(--gold)" /> Tu Código QR Único de Pedido
-                </span>
-
-                {qrClienteDataUrl && (
-                  <div style={{
-                    background: '#fff',
-                    padding: '12px',
-                    borderRadius: '16px',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.8)'
-                  }}>
-                    <img 
-                      src={qrClienteDataUrl} 
-                      alt={`QR Pedido #${pedidoCreado.codigo}`} 
-                      style={{ width: '180px', height: '180px', display: 'block' }} 
-                    />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => descargarQR(qrClienteDataUrl, `QR-Pedido-${pedidoCreado.codigo}.png`)}
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '10px',
-                    padding: '8px 16px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Download size={14} /> Descargar mi Código QR (PNG)
-                </button>
-
-                <p style={{ fontSize: '11.5px', color: '#cddbc5', margin: 0, lineHeight: '1.4', maxWidth: '380px' }}>
-                  📸 <strong>Guarda este código QR o tómale captura de pantalla.</strong> Podrás escanearlo o subir la foto en la sección <strong>"Rastrear tu Pedido"</strong> desde cualquier dispositivo para verificar si sigue en el local o si ya salió en camino.
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: 'rgba(37, 211, 102, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#25D366'
+                }}>
+                  <Phone size={20} />
+                </div>
+                <h4 style={{ margin: 0, fontSize: '14.5px', color: '#fff', fontWeight: 'bold' }}>
+                  Avisos Directos a tu WhatsApp
+                </h4>
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#d4dfce', lineHeight: '1.45' }}>
+                  Te enviaremos las actualizaciones del estado de tu pedido directamente por mensaje de WhatsApp al número que configuraste:
                 </p>
+                <div style={{
+                  background: 'rgba(0,0,0,0.45)',
+                  padding: '6px 16px',
+                  borderRadius: '100px',
+                  border: '1px solid rgba(37, 211, 102, 0.5)',
+                  color: '#4ade80',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  fontFamily: 'monospace',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '2px'
+                }}>
+                  <span>📲</span>
+                  <span>+591 {pedidoCreado.telefono}</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#9bb094', marginTop: '2px' }}>
+                  Nuestro equipo en cocina y despacho te notificará por mensaje cuando empiece la preparación y cuando esté listo o en camino.
+                </span>
               </div>
 
-              {/* Botón de Seguimiento Inmediato */}
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onAbrirSeguimiento(pedidoCreado.id);
-                }}
+              {/* Resumen Compacto de Platos */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(74, 124, 63, 0.25)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                width: '100%',
+                textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--gold-light)' }}>Resumen de Platos</span>
+                  <span style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>Total: Bs. {Number(pedidoCreado.totalEstimado || 0).toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '110px', overflowY: 'auto' }}>
+                  {(pedidoCreado.itemsSeleccionados || []).map((it, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#cddbc5' }}>
+                      <span>{it.cantidad || 1}x {it.nombre}</span>
+                      <span>Bs. {((it.precio_actual || 0) * (it.cantidad || 1)).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Botón Principal: Mandar Resumen por WhatsApp */}
+              <a
+                href={linkWhatsApp(construirResumenPedidoWhatsApp(pedidoCreado))}
+                target="_blank"
+                rel="noreferrer"
+                id="btn-enviar-resumen-whatsapp"
                 style={{
                   width: '100%',
-                  padding: '15px',
-                  background: 'linear-gradient(135deg, #e8af60 0%, #c8903a 100%)',
+                  padding: '14px 18px',
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                   border: 'none',
                   borderRadius: '14px',
-                  color: '#0f1710',
-                  fontSize: '15px',
-                  fontWeight: 'bold',
+                  color: '#ffffff',
+                  fontSize: '14.5px',
+                  fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 8px 25px rgba(200,144,58,0.4)'
-                }}
-              >
-                <span>Ver Estado de mi Pedido en Tiempo Real</span>
-                <ArrowRight size={18} />
-              </button>
-
-              {/* Botón WhatsApp */}
-              <a
-                href={linkWhatsApp(`Hola El Jardín! Acabo de registrar mi pedido #${pedidoCreado.codigo} para ${pedidoCreado.tipoEntrega}. Mi enlace de seguimiento es: ${pedidoCreado.trackingUrl}${pedidoCreado.googleMapsUrl ? `\nMi ubicación: ${pedidoCreado.googleMapsUrl}` : ''}`)}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  color: '#22c55e',
-                  fontSize: '12.5px',
                   textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 22px rgba(37, 211, 102, 0.4)',
+                  transition: 'all 0.2s ease'
                 }}
               >
-                <MessageCircle size={16} /> Enviar aviso directo a WhatsApp del restaurante
+                <MessageCircle size={19} />
+                <span>📲 Enviar Resumen del Pedido por WhatsApp</span>
               </a>
+
+              {/* Botón Más Pequeño: Volver al Inicio */}
+              <button
+                type="button"
+                id="btn-volver-inicio-checkout"
+                onClick={() => {
+                  if (typeof setPedido === 'function') {
+                    setPedido({});
+                  }
+                  setPaso(1);
+                  setPedidoCreado(null);
+                  onClose();
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '10px',
+                  padding: '9px 22px',
+                  color: '#d4dfce',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  marginTop: '4px'
+                }}
+              >
+                Volver al Inicio
+              </button>
             </div>
           )}
         </div>

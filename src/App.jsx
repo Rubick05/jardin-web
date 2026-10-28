@@ -252,25 +252,6 @@ function FloatingNavbar({
         >
           Contacto
         </a>
-
-        {/* Botón de Rastrear Pedido */}
-        <a 
-          className="floating-navbar-link"
-          onClick={() => {
-            onOpenSeguimiento && onOpenSeguimiento()
-          }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
-          title="Rastrear pedido en tiempo real"
-        >
-          {pedidoActivo ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4ade80', fontWeight: 'bold' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              Mi Pedido
-            </span>
-          ) : (
-            <span>🔍 Rastrear</span>
-          )}
-        </a>
       </div>
     </nav>
   )
@@ -1133,15 +1114,15 @@ function UbicacionContacto({ onOpenReserva }) {
           </div>
         </div>
 
-        {/* Gran botón WhatsApp CTA */}
+        {/* Botón WhatsApp CTA ajustado */}
         <div className="ubicacion-cta">
           <button
             onClick={onOpenReserva}
             className="btn btn-whatsapp-grande"
-            style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justify: 'center' }}
+            style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <WhatsAppIcon size={24} />
-            Reservar Mesa / Hacer Pedido (Asistente Visual)
+            <WhatsAppIcon size={20} />
+            Reservar Mesa / Hacer Pedido
           </button>
         </div>
       </div>
@@ -3662,35 +3643,6 @@ export default function App() {
             Continuar Pedido ➔
           </button>
         </div>
-      )}
-
-      {/* Botón flotante accesible de Pedido Activo */}
-      {pedidoActivo && !modalSeguimientoAbierto && !modalCheckoutAbierto && (
-        <button
-          type="button"
-          onClick={() => handleAbrirSeguimiento(pedidoActivo.id)}
-          style={{
-            position: 'fixed',
-            bottom: totalEstimado > 0 ? '145px' : '90px',
-            left: '16px',
-            zIndex: 9995,
-            background: 'linear-gradient(135deg, rgba(16,28,12,0.95), rgba(8,14,6,0.95))',
-            border: '1.5px solid var(--gold)',
-            color: '#fff',
-            borderRadius: '100px',
-            padding: '10px 16px',
-            fontSize: '12.5px',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.85), 0 0 16px rgba(200,144,58,0.3)',
-            cursor: 'pointer'
-          }}
-        >
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', flexShrink: 0 }} />
-          <span>Tu Pedido (#{pedidoActivo.codigo || pedidoActivo.id?.slice(-5)}) · Ver Estado</span>
-        </button>
       )}
 
       {/* Modal de Checkout directo desde la Landing Page */}
